@@ -5,32 +5,43 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-// Define que esta clase representa una entidad en la base de datos
 @Entity
-@Table(name = "productos") // Asocia esta entidad con la tabla "productos"
+@Table(name = "productos")
 public class ProductoModel {
 
-    // Clave primaria autoincremental de la tabla productos
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Columna que almacena el nombre del producto
-    @Column
+    @Column(nullable = false)
     private String nombreProducto;
 
-    // Columna que almacena el precio del producto
-    @Column
+    @Column(nullable = false)
     private Double precioProducto;
 
-    // Columna que almacena la cantidad de productos disponibles
-    @Column
+    @Column(nullable = false)
     private Integer cantidadProducto;
 
-    // Métodos getter y setter para acceder y modificar los atributos de la entidad
+    @Column(nullable = false, unique = true, length = 50) // Nueva columna para código de barras
+    private String codigoBarras;
 
+    @ManyToOne
+    @JoinColumn(name = "categoria_id", nullable = false)
+    private CategoriaModel categoria;
+
+    @ManyToOne
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private UsuarioModel usuario;
+
+    @ManyToOne
+    @JoinColumn(name = "proveedor_id", nullable = false)
+    private ProveedorModel proveedor;
+
+    // Getters y Setters
     public Long getId() {
         return id;
     }
@@ -61,5 +72,37 @@ public class ProductoModel {
 
     public void setCantidadProducto(Integer cantidadProducto) {
         this.cantidadProducto = cantidadProducto;
+    }
+
+    public String getCodigoBarras() {
+        return codigoBarras;
+    }
+
+    public void setCodigoBarras(String codigoBarras) {
+        this.codigoBarras = codigoBarras;
+    }
+
+    public CategoriaModel getCategoria() {
+        return categoria;
+    }
+
+    public void setCategoria(CategoriaModel categoria) {
+        this.categoria = categoria;
+    }
+
+    public UsuarioModel getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(UsuarioModel usuario) {
+        this.usuario = usuario;
+    }
+
+    public ProveedorModel getProveedor() {
+        return proveedor;
+    }
+
+    public void setProveedor(ProveedorModel proveedor) {
+        this.proveedor = proveedor;
     }
 }

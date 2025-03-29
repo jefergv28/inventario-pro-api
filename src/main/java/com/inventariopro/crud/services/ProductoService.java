@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.inventariopro.crud.models.ProductoModel;
-import com.inventariopro.crud.repositories.IProductoRepository;
+import com.inventariopro.crud.models.UsuarioModel;
+import com.inventariopro.crud.repositories.ProductoRepository;
+import com.inventariopro.crud.repositories.UsuarioRepository;
 
 // Indica que esta clase es un servicio de la aplicación
 @Service
@@ -15,15 +17,29 @@ public class ProductoService {
 
     // Inyección de dependencias para acceder al repositorio de productos
     @Autowired
-    private IProductoRepository productoRepository;
+    ProductoRepository productoRepository;
 
-    // Método para obtener todos los productos de la base de datos
-    public ArrayList<ProductoModel> getProducto() {
-        return (ArrayList<ProductoModel>) productoRepository.findAll();
+    @Autowired
+    UsuarioRepository usuarioRepository;
+
+    // Método para obtener los productos de un usuario por su email
+    public ArrayList<ProductoModel> getProductosByUsuario(String email) {
+        Optional<UsuarioModel> usuarioOptional = usuarioRepository.findByEmail(email);
+
+        if (usuarioOptional.isPresent()) {
+            UsuarioModel usuario = usuarioOptional.get();
+            System.out.println("Usuario encontrado: " + usuario.getEmail());
+            ArrayList<ProductoModel> productos = (ArrayList<ProductoModel>) productoRepository.findByUsuario(usuario);
+            System.out.println("Productos encontrados: " + productos.size());
+            return productos;
+        } else {
+            throw new RuntimeException("❌ Usuario no encontrado con email: " + email);
+        }
     }
 
-    // Método para guardar un nuevo producto en la base de datos
+    // Método para guardar un nuevo producto
     public ProductoModel saveProducto(ProductoModel producto) {
+        System.out.println("Intentando guardar producto: " + producto);
         return productoRepository.save(producto);
     }
 
@@ -36,12 +52,12 @@ public class ProductoService {
     public ProductoModel updateById(ProductoModel request, Long id) {
         return productoRepository.findById(id)
             .map(producto -> {
-                // Actualiza los atributos del producto encontrado
                 producto.setNombreProducto(request.getNombreProducto());
                 producto.setPrecioProducto(request.getPrecioProducto());
                 producto.setCantidadProducto(request.getCantidadProducto());
+                producto.setCategoria(request.getCategoria());
+                producto.setProveedor(request.getProveedor());
 
-                // Guarda y retorna el producto actualizado
                 return productoRepository.save(producto);
             })
             .orElseThrow(() -> new RuntimeException("❌ Producto no encontrado con ID: " + id));
@@ -51,8 +67,8 @@ public class ProductoService {
     public boolean deleteProducto(Long id) {
         if (productoRepository.existsById(id)) {
             productoRepository.deleteById(id);
-            return true; // Producto eliminado correctamente
+            return true;
         }
-        return false; // Producto no encontrado
+        return false;
     }
 }
