@@ -7,27 +7,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.inventariopro.crud.models.ProductoModel;
-import com.inventariopro.crud.models.UsuarioModel;
+import com.inventariopro.crud.models.User;
 import com.inventariopro.crud.repositories.ProductoRepository;
-import com.inventariopro.crud.repositories.UsuarioRepository;
+import com.inventariopro.crud.repositories.UserRepository;
 
-// Indica que esta clase es un servicio de la aplicación
 @Service
 public class ProductoService {
 
-    // Inyección de dependencias para acceder al repositorio de productos
     @Autowired
     ProductoRepository productoRepository;
 
     @Autowired
-    UsuarioRepository usuarioRepository;
+    UserRepository userRepository;
 
-    // Método para obtener los productos de un usuario por su email
     public ArrayList<ProductoModel> getProductosByUsuario(String email) {
-        Optional<UsuarioModel> usuarioOptional = usuarioRepository.findByEmail(email);
+        Optional<User> usuarioOptional = userRepository.findByEmail(email);
 
         if (usuarioOptional.isPresent()) {
-            UsuarioModel usuario = usuarioOptional.get();
+            User usuario = usuarioOptional.get();
             System.out.println("Usuario encontrado: " + usuario.getEmail());
             ArrayList<ProductoModel> productos = (ArrayList<ProductoModel>) productoRepository.findByUsuario(usuario);
             System.out.println("Productos encontrados: " + productos.size());
@@ -37,18 +34,15 @@ public class ProductoService {
         }
     }
 
-    // Método para guardar un nuevo producto
     public ProductoModel saveProducto(ProductoModel producto) {
         System.out.println("Intentando guardar producto: " + producto);
         return productoRepository.save(producto);
     }
 
-    // Método para obtener un producto por su ID
     public Optional<ProductoModel> getById(Long id) {
         return productoRepository.findById(id);
     }
 
-    // Método para actualizar un producto por su ID
     public ProductoModel updateById(ProductoModel request, Long id) {
         return productoRepository.findById(id)
             .map(producto -> {
@@ -63,7 +57,6 @@ public class ProductoService {
             .orElseThrow(() -> new RuntimeException("❌ Producto no encontrado con ID: " + id));
     }
 
-    // Método para eliminar un producto por su ID
     public boolean deleteProducto(Long id) {
         if (productoRepository.existsById(id)) {
             productoRepository.deleteById(id);

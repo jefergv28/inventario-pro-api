@@ -35,7 +35,7 @@ public class ProductoModel {
 
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false)
-    private UsuarioModel usuario;
+    private User usuario;
 
     @ManyToOne
     @JoinColumn(name = "proveedor_id", nullable = false)
@@ -90,11 +90,11 @@ public class ProductoModel {
         this.categoria = categoria;
     }
 
-    public UsuarioModel getUsuario() {
+    public User getUsuario() {
         return usuario;
     }
 
-    public void setUsuario(UsuarioModel usuario) {
+    public void setUsuario(User usuario) {
         this.usuario = usuario;
     }
 
@@ -104,5 +104,10 @@ public class ProductoModel {
 
     public void setProveedor(ProveedorModel proveedor) {
         this.proveedor = proveedor;
+    }
+
+    public void setUser(User usuarioEntidad) {
+
+        throw new UnsupportedOperationException("Unimplemented method 'setUser'");
     }
 }

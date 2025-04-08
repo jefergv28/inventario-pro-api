@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.inventariopro.crud.models.ProductoModel;
-import com.inventariopro.crud.models.UsuarioModel;
-import com.inventariopro.crud.repositories.UsuarioRepository;
+import com.inventariopro.crud.models.User;
+import com.inventariopro.crud.repositories.UserRepository;
 import com.inventariopro.crud.services.ProductoService;
 
-@CrossOrigin(origins = "http://127.0.0.1:5500") // Permite peticiones desde el frontend en localhost
+@CrossOrigin(origins = "http://localhost:3000") // Permite peticiones desde el frontend en localhost
 @RestController
 @RequestMapping("/productos") // Define la ruta base para este controlador
 public class ProductoController {
@@ -30,7 +30,7 @@ public class ProductoController {
     private ProductoService productoService;
 
     @Autowired
-    private UsuarioRepository usuarioRepository;
+    private UserRepository usuarioRepository;
 
     // Método para obtener la lista de productos del usuario autenticado
     @GetMapping
@@ -42,15 +42,26 @@ public class ProductoController {
         return productos;
     }
     // Método para guardar un nuevo producto en la base de datos
+
     @PostMapping
     public ProductoModel saveProducto(@RequestBody ProductoModel producto, @AuthenticationPrincipal UserDetails usuario) {
-        String emailUsuario = usuario.getUsername();
+        if (usuario == null) {
+            System.out.println("❌ Usuario no autenticado. El token no es válido.");
+            throw new RuntimeException("Usuario no autenticado.");
+        }
+        System.out.println("✅ Usuario autenticado: " + usuario.getUsername());
 
-        // Manejo adecuado del Optional para evitar errores
-        UsuarioModel usuarioEntidad = usuarioRepository.findByEmail(emailUsuario)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        System.out.println("Buscando usuario con email: " + usuario.getUsername());
+        User usuarioEntidad = usuarioRepository.findByEmail(usuario.getUsername())
+            .orElseThrow(() -> {
+                System.out.println("❌ Usuario no encontrado en la base de datos.");
+                return new RuntimeException("Usuario no encontrado.");
+            });
+        System.out.println("✅ Usuario encontrado: " + usuarioEntidad.getEmail());
 
-        producto.setUsuario(usuarioEntidad);
+        System.out.println("Datos del producto recibido: " + producto);
+        producto.setUser(usuarioEntidad);
+
         return this.productoService.saveProducto(producto);
     }
 

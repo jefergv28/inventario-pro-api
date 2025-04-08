@@ -37,7 +37,7 @@ public class HistorialMovimientoModel {
 
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false)
-    private UsuarioModel usuario; // Usuario que hizo el movimiento
+    private User usuario; // Usuario que hizo el movimiento
 
     // Constructor
     public HistorialMovimientoModel() {
@@ -85,11 +85,11 @@ public class HistorialMovimientoModel {
         this.fechaMovimiento = fechaMovimiento;
     }
 
-    public UsuarioModel getUsuario() {
+    public User getUsuario() {
         return usuario;
     }
 
-    public void setUsuario(UsuarioModel usuario) {
+    public void setUsuario(User usuario) {
         this.usuario = usuario;
     }
 }

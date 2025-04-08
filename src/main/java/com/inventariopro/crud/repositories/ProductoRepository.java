@@ -6,10 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.inventariopro.crud.models.ProductoModel;
-import com.inventariopro.crud.models.UsuarioModel;
+import com.inventariopro.crud.models.User;
 
 // Indica que esta interfaz es un componente de repositorio de Spring
 @Repository
 public interface ProductoRepository extends JpaRepository<ProductoModel, Long> {
-    List<ProductoModel> findByUsuario(UsuarioModel usuario);
+    List<ProductoModel> findByUsuario(User usuario);
 }

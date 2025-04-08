@@ -23,7 +23,7 @@ public class ConfiguracionModel {
 
     @OneToOne
     @JoinColumn(name = "usuario_id", nullable = false)
-    private UsuarioModel usuario;
+    private User usuario;
 
     @Column(nullable = false)
     private String moneda;
@@ -50,11 +50,11 @@ public class ConfiguracionModel {
         this.id = id;
     }
 
-    public UsuarioModel getUsuario() {
+    public User getUser() {
         return usuario;
     }
 
-    public void setUsuario(UsuarioModel usuario) {
+    public void setUsuario(User usuario) {
         this.usuario = usuario;
     }
 
