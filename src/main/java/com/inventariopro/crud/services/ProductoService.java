@@ -50,7 +50,7 @@ public class ProductoService {
                 producto.setPrecioProducto(request.getPrecioProducto());
                 producto.setCantidadProducto(request.getCantidadProducto());
                 producto.setCategoria(request.getCategoria());
-                producto.setProveedor(request.getProveedor());
+                producto.setProveedor(null);
 
                 return productoRepository.save(producto);
             })

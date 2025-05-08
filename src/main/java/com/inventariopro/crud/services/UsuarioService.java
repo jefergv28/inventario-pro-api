@@ -24,7 +24,7 @@ public class UsuarioService {
     }
 
     public Optional<User> obtenerUsuarioPorId(Long id) {
-        return UserRepository.findById(id);
+        return Optional.empty();
     }
 
     public User actualizarUsuario(User usuario) {
@@ -32,6 +32,6 @@ public class UsuarioService {
     }
 
     public void eliminarUsuario(Long id) {
-        UserRepository.deleteById(id);
+        UserRepository.deleteAll();
     }
 }

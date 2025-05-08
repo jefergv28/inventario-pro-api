@@ -1,29 +1,41 @@
 package com.inventariopro.crud.controllers;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Optional;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.inventariopro.crud.models.CategoriaModel;
 import com.inventariopro.crud.models.ProductoModel;
 import com.inventariopro.crud.models.User;
+import com.inventariopro.crud.repositories.CategoriaRepository;
 import com.inventariopro.crud.repositories.UserRepository;
 import com.inventariopro.crud.services.ProductoService;
 
-@CrossOrigin(origins = "http://localhost:3000") // Permite peticiones desde el frontend en localhost
+@CrossOrigin(origins = "http://localhost:3000")
 @RestController
-@RequestMapping("/productos") // Define la ruta base para este controlador
+@RequestMapping("/productos")
 public class ProductoController {
 
     @Autowired
@@ -32,60 +44,134 @@ public class ProductoController {
     @Autowired
     private UserRepository usuarioRepository;
 
-    // Método para obtener la lista de productos del usuario autenticado
+    @Autowired
+    private CategoriaRepository categoriaRepository;
+
+    private final String UPLOAD_DIR = "uploads";
+
     @GetMapping
-    public ArrayList<ProductoModel> getProductos(@AuthenticationPrincipal UserDetails usuario) {
-        String emailUsuario = usuario.getUsername();
-        System.out.println("Email autenticado: " + emailUsuario);
-        ArrayList<ProductoModel> productos = this.productoService.getProductosByUsuario(emailUsuario);
-        System.out.println("Productos en controlador: " + productos.size());
-        return productos;
-    }
-    // Método para guardar un nuevo producto en la base de datos
-
-    @PostMapping
-    public ProductoModel saveProducto(@RequestBody ProductoModel producto, @AuthenticationPrincipal UserDetails usuario) {
-        if (usuario == null) {
-            System.out.println("❌ Usuario no autenticado. El token no es válido.");
-            throw new RuntimeException("Usuario no autenticado.");
+    public ResponseEntity<ArrayList<ProductoModel>> getProductos(@AuthenticationPrincipal UserDetails usuario) {
+        try {
+            ArrayList<ProductoModel> productos = productoService.getProductosByUsuario(usuario.getUsername());
+            return ResponseEntity.ok(productos);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
-        System.out.println("✅ Usuario autenticado: " + usuario.getUsername());
-
-        System.out.println("Buscando usuario con email: " + usuario.getUsername());
-        User usuarioEntidad = usuarioRepository.findByEmail(usuario.getUsername())
-            .orElseThrow(() -> {
-                System.out.println("❌ Usuario no encontrado en la base de datos.");
-                return new RuntimeException("Usuario no encontrado.");
-            });
-        System.out.println("✅ Usuario encontrado: " + usuarioEntidad.getEmail());
-
-        System.out.println("Datos del producto recibido: " + producto);
-        producto.setUser(usuarioEntidad);
-
-        return this.productoService.saveProducto(producto);
     }
 
-    // Método para obtener un producto por su ID
-    @GetMapping("/{id}")
-    public Optional<ProductoModel> getProductoById(@PathVariable Long id) {
-        return this.productoService.getById(id);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> saveProducto(
+        @RequestParam("name") String name,
+        @RequestParam("quantity") int quantity,
+        @RequestParam("description") String description,
+        @RequestParam("categoryId") Long categoryId,
+        @RequestParam("providerName") String providerName,
+        @RequestParam("price") double price,
+        @RequestPart(value = "image", required = false) MultipartFile image,
+        @AuthenticationPrincipal UserDetails usuario) {
+
+        try {
+            // Validaciones básicas
+            if (usuario == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+            }
+
+            if (name == null || name.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("El nombre del producto es requerido");
+            }
+
+            if (providerName == null || providerName.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("El nombre del proveedor es requerido");
+            }
+
+            // Buscar o crear el proveedor
+            User proveedor = usuarioRepository.findByEmail(providerName)
+                .orElseThrow(() -> new RuntimeException("Proveedor no encontrado"));
+
+            User userEntity = usuarioRepository.findByEmail(usuario.getUsername())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+            CategoriaModel categoria = categoriaRepository.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+
+            ProductoModel producto = new ProductoModel();
+            producto.setNombreProducto(name);
+            producto.setCantidadProducto(quantity);
+            producto.setDescripcionProducto(description);
+            producto.setCategoria(categoria);
+            producto.setProveedor(proveedor); // Asignamos el proveedor basado en el nombre de usuario
+            producto.setPrecioProducto(price);
+            producto.setUsuario(userEntity);
+
+            // Manejo de la imagen
+            if (image != null && !image.isEmpty()) {
+                validateImageFile(image);
+                String fileName = storeImage(image);
+                producto.setImageUrl("/" + UPLOAD_DIR + "/" + fileName);
+            }
+
+            ProductoModel savedProducto = productoService.saveProducto(producto);
+            return ResponseEntity.ok(savedProducto);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error interno al guardar el producto: " + e.getMessage());
+        }
     }
 
-    // Método para actualizar un producto por su ID
-    @PutMapping("/{id}")
-    public ProductoModel updateProductoById(@RequestBody ProductoModel request, @PathVariable Long id) {
-        return this.productoService.updateById(request, id);
+    @GetMapping("/proveedores")
+    public ResponseEntity<List<User>> getAllProveedores() {
+        try {
+            List<User> proveedores = usuarioRepository.findAll(); // Suponiendo que los proveedores son usuarios
+            return ResponseEntity.ok(proveedores);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
-    // Método para eliminar un producto por su ID
     @DeleteMapping("/{id}")
-    public String deleteById(@PathVariable Long id) {
-        boolean ok = this.productoService.deleteProducto(id);
-
-        if (ok) {
-            return "✅ Producto con ID " + id + " eliminado correctamente.";
-        } else {
-            return "❌ Error: Producto con ID " + id + " no encontrado.";
+    public ResponseEntity<String> deleteById(@PathVariable Long id) {
+        try {
+            boolean deleted = productoService.deleteProducto(id);
+            return deleted
+                ? ResponseEntity.ok("✅ Producto eliminado")
+                : ResponseEntity.status(HttpStatus.NOT_FOUND).body("❌ Producto no encontrado");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al eliminar el producto");
         }
+    }
+
+    private void validateImageFile(MultipartFile file) {
+        if (file == null) {
+            throw new RuntimeException("El archivo no puede ser nulo");
+        }
+
+        if (!file.getContentType().startsWith("image/")) {
+            throw new RuntimeException("El archivo debe ser una imagen (JPEG, PNG, etc.)");
+        }
+
+        if (file.getSize() > 5_000_000) {
+            throw new RuntimeException("La imagen es demasiado grande (máximo 5MB)");
+        }
+    }
+
+    private String storeImage(MultipartFile file) throws IOException {
+        Path uploadDir = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
+        Files.createDirectories(uploadDir);
+
+        String fileName = StringUtils.cleanPath(
+            System.currentTimeMillis() + "_" + file.getOriginalFilename());
+
+        if (fileName.contains("..")) {
+            throw new RuntimeException("Nombre de archivo inválido: " + fileName);
+        }
+
+        Path targetLocation = uploadDir.resolve(fileName);
+        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+        return fileName;
     }
 }

@@ -25,19 +25,30 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    return http
-        .csrf(csrf -> csrf.disable()) // Desactiva CSRF
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/auth/login", "/auth/register", "/error").permitAll() // Permite acceso sin autenticación
-            .anyRequest().authenticated() // Resto de peticiones requieren autenticación
-        )
-        .sessionManagement(sessionManager -> sessionManager
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Desactiva sesiones (sin estado)
-        .authenticationProvider(authProvider) // Proveedor de autenticación
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Filtro de JWT
-        .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Aplica configuración CORS
-        .build(); // Construye la cadena de configuración
+      return http
+          .csrf(csrf -> csrf.disable())
+          .authorizeHttpRequests(auth -> auth
+              .requestMatchers(
+                  "/auth/login",
+                  "/auth/register",
+                  "/error",
+                  "/swagger-ui.html",
+                  "/swagger-ui/**",
+                  "/v3/api-docs/**"
+              ).permitAll()
+              .requestMatchers("/proveedores/**").hasRole("ADMIN")
+              .requestMatchers("/categorias").permitAll()
+              .anyRequest().authenticated()
+          )
+          .sessionManagement(sessionManager -> sessionManager
+              .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+          .authenticationProvider(authProvider)
+          .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+          .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+          .build();
   }
+
+
 
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {

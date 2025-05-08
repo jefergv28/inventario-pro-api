@@ -79,4 +79,6 @@ public class User implements UserDetails {
 
         throw new UnsupportedOperationException("Unimplemented method 'setId'");
     }
+
+
 }
