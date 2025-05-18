@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.inventariopro.crud.models.ProveedorModel;
+import com.inventariopro.crud.models.User;
 import com.inventariopro.crud.repositories.ProveedorRepository;
 
 @Service
@@ -15,24 +16,26 @@ public class ProveedorService {
     @Autowired
     private ProveedorRepository proveedorRepository;
 
-    public List<ProveedorModel> obtenerProveedores() {
-        return proveedorRepository.findAll();
+    // Obtener todos los proveedores de un usuario específico
+    public List<ProveedorModel> obtenerProveedoresPorUsuario(User usuario) {
+        return proveedorRepository.findByUsuario(usuario);
+    }
+
+    public Optional<ProveedorModel> obtenerPorIdYUsuario(Long id, User usuario) {
+        return proveedorRepository.findById(id)
+                .filter(proveedor -> proveedor.getUsuario().equals(usuario));
     }
 
     public ProveedorModel guardarProveedor(ProveedorModel proveedor) {
         return proveedorRepository.save(proveedor);
     }
 
-    public Optional<ProveedorModel> obtenerPorId(Long id) {
-        return proveedorRepository.findById(id);
-    }
-
-    public boolean eliminarProveedor(Long id) {
-        try {
-            proveedorRepository.deleteById(id);
+    public boolean eliminarProveedor(Long id, User usuario) {
+        Optional<ProveedorModel> proveedorOpt = obtenerPorIdYUsuario(id, usuario);
+        if (proveedorOpt.isPresent()) {
+            proveedorRepository.delete(proveedorOpt.get());
             return true;
-        } catch (Exception e) {
-            return false;
         }
+        return false;
     }
 }

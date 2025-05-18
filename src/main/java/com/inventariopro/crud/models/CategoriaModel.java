@@ -2,6 +2,8 @@ package com.inventariopro.crud.models;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,8 +25,11 @@ public class CategoriaModel {
     private String nombre;
 
     // Relación con productos (una categoría puede tener varios productos)
-    @OneToMany(mappedBy = "categoria", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductoModel> productos;
+  @JsonManagedReference
+@OneToMany(mappedBy = "categoria", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<ProductoModel> productos;
+
+
 
     // Getters y Setters
     public Long getId() {

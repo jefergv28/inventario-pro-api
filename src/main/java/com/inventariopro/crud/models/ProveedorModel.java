@@ -2,12 +2,16 @@ package com.inventariopro.crud.models;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
@@ -26,7 +30,14 @@ public class ProveedorModel {
     private String contacto;
 
     @OneToMany(mappedBy = "proveedor", cascade = CascadeType.ALL, orphanRemoval = true)
+   @JsonIgnore
     private List<ProductoModel> productos;
+
+    @ManyToOne
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private User usuario;
+
+    // Getters y Setters
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -39,4 +50,7 @@ public class ProveedorModel {
 
     public List<ProductoModel> getProductos() { return productos; }
     public void setProductos(List<ProductoModel> productos) { this.productos = productos; }
+
+    public User getUsuario() { return usuario; }
+    public void setUsuario(User usuario) { this.usuario = usuario; }
 }

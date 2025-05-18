@@ -13,25 +13,25 @@ import com.inventariopro.crud.repositories.UserRepository;
 public class UsuarioService {
 
     @Autowired
-    private UserRepository UserRepository;
+    private UserRepository userRepository;
 
     public User crearUsuario(User usuario) {
-        return UserRepository.save(usuario);
+        return userRepository.save(usuario);
     }
 
     public List<User> obtenerTodosUsuarios() {
-        return UserRepository.findAll();
+        return userRepository.findAll();
     }
 
     public Optional<User> obtenerUsuarioPorId(Long id) {
-        return Optional.empty();
+        return userRepository.findById(id);  // ← antes estaba devolviendo Optional vacío
     }
 
     public User actualizarUsuario(User usuario) {
-        return UserRepository.save(usuario);
+        return userRepository.save(usuario);
     }
 
     public void eliminarUsuario(Long id) {
-        UserRepository.deleteAll();
+        userRepository.deleteById(id);  // ← antes eliminaba todos los usuarios
     }
 }

@@ -7,11 +7,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.inventariopro.crud.models.ProveedorModel;
+import com.inventariopro.crud.models.User;
 
 @Repository
 public interface ProveedorRepository extends JpaRepository<ProveedorModel, Long> {
 
-    Optional<ProveedorModel> findByNombre(String providerName);
+    List<ProveedorModel> findByUsuario(User usuario);
 
-    List<ProveedorModel> findByNombreContainingIgnoreCase(String query);
+    Optional<ProveedorModel> findByNombreAndUsuario(String nombre, User usuario);
+
+    List<ProveedorModel> findByNombreContainingIgnoreCaseAndUsuario(String query, User usuario);
 }

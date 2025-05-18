@@ -1,5 +1,6 @@
 package com.inventariopro.crud.services;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -12,13 +13,13 @@ import org.springframework.stereotype.Service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY = "a92f7c6e173fae7c6b395a34c98e209cb35e5e9d5d7f5eac93d9c86743a6e122";
+    // Usa aquí la clave secreta igual que en el frontend (texto plano)
+    private static final String SECRET_KEY = "miClaveSuperSecretaMuyLargaYSegura1234567890";
 
     public String getToken(UserDetails user) {
         return getToken(new HashMap<>(), user);
@@ -35,7 +36,7 @@ public class JwtService {
     }
 
     private Key getKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] keyBytes = SECRET_KEY.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -61,14 +62,13 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration).before(new Date());
     }
 
-    // Método genérico para extraer claims
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = getAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
     public Date getExpiration(String token) {
-      return extractClaim(token,Claims::getExpiration);
+      return extractClaim(token, Claims::getExpiration);
     }
 
 }

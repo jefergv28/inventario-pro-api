@@ -1,5 +1,8 @@
 package com.inventariopro.crud.models;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -31,15 +34,18 @@ public class ProductoModel {
 
     @ManyToOne
     @JoinColumn(name = "categoria_id", nullable = false)
+    @JsonBackReference
     private CategoriaModel categoria;
 
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false)
+    @JsonIgnoreProperties("productos")
     private User usuario;
 
-    @ManyToOne
-    @JoinColumn(name = "proveedor_id", nullable = false)
-    private ProveedorModel proveedor;
+@ManyToOne(optional = true)
+@JoinColumn(name = "proveedor_id", nullable = true)
+private ProveedorModel proveedor;
+
 
     @Column(name = "image_url")
     private String imageUrl;
@@ -76,7 +82,8 @@ public class ProductoModel {
 
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-		public void setProveedor(User proveedor2) {
-			throw new UnsupportedOperationException("Unimplemented method 'setProveedor'");
-		}
+		public void setProveedor(ProveedorModel proveedor) {
+    this.proveedor = proveedor;
+}
+
 }

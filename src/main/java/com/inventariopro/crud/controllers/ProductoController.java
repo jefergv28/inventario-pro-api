@@ -28,10 +28,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.inventariopro.crud.models.CategoriaModel;
 import com.inventariopro.crud.models.ProductoModel;
+import com.inventariopro.crud.models.ProveedorModel;
 import com.inventariopro.crud.models.User;
 import com.inventariopro.crud.repositories.CategoriaRepository;
 import com.inventariopro.crud.repositories.UserRepository;
 import com.inventariopro.crud.services.ProductoService;
+import com.inventariopro.crud.services.ProveedorService;
 
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
@@ -40,6 +42,9 @@ public class ProductoController {
 
     @Autowired
     private ProductoService productoService;
+
+    @Autowired
+    private ProveedorService proveedorService;
 
     @Autowired
     private UserRepository usuarioRepository;
@@ -61,17 +66,16 @@ public class ProductoController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> saveProducto(
-        @RequestParam("name") String name,
-        @RequestParam("quantity") int quantity,
-        @RequestParam("description") String description,
-        @RequestParam("categoryId") Long categoryId,
-        @RequestParam("providerName") String providerName,
-        @RequestParam("price") double price,
-        @RequestPart(value = "image", required = false) MultipartFile image,
-        @AuthenticationPrincipal UserDetails usuario) {
+            @RequestParam("name") String name,
+            @RequestParam("quantity") int quantity,
+            @RequestParam("description") String description,
+            @RequestParam("categoryId") Long categoryId,
+            @RequestParam("providerId") Long providerId,
+            @RequestParam("price") double price,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @AuthenticationPrincipal UserDetails usuario) {
 
         try {
-            // Validaciones básicas
             if (usuario == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
             }
@@ -80,30 +84,29 @@ public class ProductoController {
                 return ResponseEntity.badRequest().body("El nombre del producto es requerido");
             }
 
-            if (providerName == null || providerName.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("El nombre del proveedor es requerido");
-            }
-
-            // Buscar o crear el proveedor
-            User proveedor = usuarioRepository.findByEmail(providerName)
-                .orElseThrow(() -> new RuntimeException("Proveedor no encontrado"));
-
+            // Buscar usuario autenticado
             User userEntity = usuarioRepository.findByEmail(usuario.getUsername())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
+            // Buscar proveedor por ID
+            ProveedorModel proveedor = proveedorService.obtenerPorIdYUsuario(providerId, userEntity)
+                    .orElseThrow(() -> new RuntimeException("Proveedor no encontrado o no pertenece al usuario"));
+
+            // Buscar categoría por ID
             CategoriaModel categoria = categoriaRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+                    .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
+            // Crear el producto
             ProductoModel producto = new ProductoModel();
             producto.setNombreProducto(name);
             producto.setCantidadProducto(quantity);
             producto.setDescripcionProducto(description);
             producto.setCategoria(categoria);
-            producto.setProveedor(proveedor); // Asignamos el proveedor basado en el nombre de usuario
+            producto.setProveedor(proveedor);
             producto.setPrecioProducto(price);
             producto.setUsuario(userEntity);
 
-            // Manejo de la imagen
+            // Manejar imagen
             if (image != null && !image.isEmpty()) {
                 validateImageFile(image);
                 String fileName = storeImage(image);
@@ -135,12 +138,10 @@ public class ProductoController {
     public ResponseEntity<String> deleteById(@PathVariable Long id) {
         try {
             boolean deleted = productoService.deleteProducto(id);
-            return deleted
-                ? ResponseEntity.ok("✅ Producto eliminado")
-                : ResponseEntity.status(HttpStatus.NOT_FOUND).body("❌ Producto no encontrado");
+            return deleted ? ResponseEntity.ok("✅ Producto eliminado")
+                    : ResponseEntity.status(HttpStatus.NOT_FOUND).body("❌ Producto no encontrado");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al eliminar el producto");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar el producto");
         }
     }
 
@@ -149,7 +150,8 @@ public class ProductoController {
             throw new RuntimeException("El archivo no puede ser nulo");
         }
 
-        if (!file.getContentType().startsWith("image/")) {
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
             throw new RuntimeException("El archivo debe ser una imagen (JPEG, PNG, etc.)");
         }
 
@@ -162,8 +164,7 @@ public class ProductoController {
         Path uploadDir = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
         Files.createDirectories(uploadDir);
 
-        String fileName = StringUtils.cleanPath(
-            System.currentTimeMillis() + "_" + file.getOriginalFilename());
+        String fileName = StringUtils.cleanPath(System.currentTimeMillis() + "_" + file.getOriginalFilename());
 
         if (fileName.contains("..")) {
             throw new RuntimeException("Nombre de archivo inválido: " + fileName);
