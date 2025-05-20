@@ -25,17 +25,13 @@ public class ProductoService {
 
         if (usuarioOptional.isPresent()) {
             User usuario = usuarioOptional.get();
-            System.out.println("Usuario encontrado: " + usuario.getEmail());
-            ArrayList<ProductoModel> productos = (ArrayList<ProductoModel>) productoRepository.findByUsuario(usuario);
-            System.out.println("Productos encontrados: " + productos.size());
-            return productos;
+            return (ArrayList<ProductoModel>) productoRepository.findByUsuario(usuario);
         } else {
             throw new RuntimeException("❌ Usuario no encontrado con email: " + email);
         }
     }
 
     public ProductoModel saveProducto(ProductoModel producto) {
-        System.out.println("Intentando guardar producto: " + producto);
         return productoRepository.save(producto);
     }
 
@@ -51,7 +47,6 @@ public class ProductoService {
                 producto.setCantidadProducto(request.getCantidadProducto());
                 producto.setCategoria(request.getCategoria());
                 producto.setProveedor(null);
-
                 return productoRepository.save(producto);
             })
             .orElseThrow(() -> new RuntimeException("❌ Producto no encontrado con ID: " + id));
@@ -63,5 +58,14 @@ public class ProductoService {
             return true;
         }
         return false;
+    }
+
+    // ✅ Este es el método que te falta para evitar el error
+    public ProductoModel getProductoByIdAndUsuario(Long id, String email) {
+        User usuario = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        return productoRepository.findByIdAndUsuario(id, usuario)
+            .orElse(null);
     }
 }

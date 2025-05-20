@@ -9,7 +9,7 @@ public class ProductoDTO {
     private Integer cantidadProducto;
     private String descripcionProducto;
     private String imageUrl;
-    private String categoriaNombre;
+    private CategoriaDTO categoria;  // Cambiado a objeto CategoriaDTO
     private UsuarioDTO usuario;
     private ProveedorDTO proveedor;
 
@@ -27,12 +27,13 @@ public class ProductoDTO {
             this.imageUrl = null;
         }
 
-        this.categoriaNombre = producto.getCategoria().getNombre();
+        this.categoria = producto.getCategoria() != null ? new CategoriaDTO(producto.getCategoria()) : null;
         this.usuario = new UsuarioDTO(producto.getUsuario());
         this.proveedor = producto.getProveedor() != null ? new ProveedorDTO(producto.getProveedor()) : null;
     }
 
     // Getters y Setters
+
     public Long getId() {
         return id;
     }
@@ -81,12 +82,12 @@ public class ProductoDTO {
         this.imageUrl = imageUrl;
     }
 
-    public String getCategoriaNombre() {
-        return categoriaNombre;
+    public CategoriaDTO getCategoria() {
+        return categoria;
     }
 
-    public void setCategoriaNombre(String categoriaNombre) {
-        this.categoriaNombre = categoriaNombre;
+    public void setCategoria(CategoriaDTO categoria) {
+        this.categoria = categoria;
     }
 
     public UsuarioDTO getUsuario() {

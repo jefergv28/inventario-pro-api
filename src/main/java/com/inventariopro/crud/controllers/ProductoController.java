@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,12 +21,14 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.inventariopro.crud.dto.ProductoDTO;
 import com.inventariopro.crud.models.CategoriaModel;
 import com.inventariopro.crud.models.ProductoModel;
 import com.inventariopro.crud.models.ProveedorModel;
@@ -54,16 +57,24 @@ public class ProductoController {
 
     private final String UPLOAD_DIR = "uploads";
 
+    // Endpoint para obtener todos los productos del usuario autenticado
     @GetMapping
-    public ResponseEntity<ArrayList<ProductoModel>> getProductos(@AuthenticationPrincipal UserDetails usuario) {
+    public ResponseEntity<List<ProductoDTO>> getProductos(@AuthenticationPrincipal UserDetails usuario) {
         try {
             ArrayList<ProductoModel> productos = productoService.getProductosByUsuario(usuario.getUsername());
-            return ResponseEntity.ok(productos);
+
+            // Convertir cada ProductoModel a ProductoDTO
+            List<ProductoDTO> productosDTO = productos.stream()
+                    .map(ProductoDTO::new)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(productosDTO);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
+    // Endpoint para guardar un nuevo producto
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> saveProducto(
             @RequestParam("name") String name,
@@ -124,16 +135,78 @@ public class ProductoController {
         }
     }
 
-    @GetMapping("/proveedores")
-    public ResponseEntity<List<User>> getAllProveedores() {
+    // Nuevo endpoint para obtener un producto por id (para edición)
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getProductoPorId(@PathVariable Long id, @AuthenticationPrincipal UserDetails usuario) {
         try {
-            List<User> proveedores = usuarioRepository.findAll(); // Suponiendo que los proveedores son usuarios
-            return ResponseEntity.ok(proveedores);
+            ProductoModel producto = productoService.getProductoByIdAndUsuario(id, usuario.getUsername());
+            if (producto == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado");
+            }
+            return ResponseEntity.ok(new ProductoDTO(producto));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno");
         }
     }
 
+    // Nuevo endpoint para actualizar (editar) un producto existente
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> actualizarProducto(
+            @PathVariable Long id,
+            @RequestParam("name") String name,
+            @RequestParam("quantity") int quantity,
+            @RequestParam("description") String description,
+            @RequestParam("categoryId") Long categoryId,
+            @RequestParam("providerId") Long providerId,
+            @RequestParam("price") double price,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @AuthenticationPrincipal UserDetails usuario) {
+
+        try {
+            if (usuario == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+            }
+
+            ProductoModel productoExistente = productoService.getProductoByIdAndUsuario(id, usuario.getUsername());
+            if (productoExistente == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado");
+            }
+
+            User userEntity = usuarioRepository.findByEmail(usuario.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+            ProveedorModel proveedor = proveedorService.obtenerPorIdYUsuario(providerId, userEntity)
+                    .orElseThrow(() -> new RuntimeException("Proveedor no encontrado o no pertenece al usuario"));
+
+            CategoriaModel categoria = categoriaRepository.findById(categoryId)
+                    .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+
+            // Actualizar campos
+            productoExistente.setNombreProducto(name);
+            productoExistente.setCantidadProducto(quantity);
+            productoExistente.setDescripcionProducto(description);
+            productoExistente.setCategoria(categoria);
+            productoExistente.setProveedor(proveedor);
+            productoExistente.setPrecioProducto(price);
+
+            if (image != null && !image.isEmpty()) {
+                validateImageFile(image);
+                String fileName = storeImage(image);
+                productoExistente.setImageUrl("/" + UPLOAD_DIR + "/" + fileName);
+            }
+
+            ProductoModel actualizado = productoService.saveProducto(productoExistente);
+            return ResponseEntity.ok(actualizado);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error interno al actualizar el producto: " + e.getMessage());
+        }
+    }
+
+    // Endpoint para eliminar un producto por id
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteById(@PathVariable Long id) {
         try {
@@ -145,6 +218,18 @@ public class ProductoController {
         }
     }
 
+    // Endpoint para obtener todos los proveedores (en este caso se obtienen todos los usuarios)
+    @GetMapping("/proveedores")
+    public ResponseEntity<List<User>> getAllProveedores() {
+        try {
+            List<User> proveedores = usuarioRepository.findAll(); // Suponiendo que los proveedores son usuarios
+            return ResponseEntity.ok(proveedores);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    // Método para validar que el archivo sea una imagen válida
     private void validateImageFile(MultipartFile file) {
         if (file == null) {
             throw new RuntimeException("El archivo no puede ser nulo");
@@ -160,6 +245,7 @@ public class ProductoController {
         }
     }
 
+    // Método para almacenar la imagen en el directorio UPLOAD_DIR
     private String storeImage(MultipartFile file) throws IOException {
         Path uploadDir = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
         Files.createDirectories(uploadDir);
