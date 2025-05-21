@@ -121,7 +121,7 @@ public class ProductoController {
             if (image != null && !image.isEmpty()) {
                 validateImageFile(image);
                 String fileName = storeImage(image);
-                producto.setImageUrl("/" + UPLOAD_DIR + "/" + fileName);
+                producto.setImageUrl(fileName);
             }
 
             ProductoModel savedProducto = productoService.saveProducto(producto);

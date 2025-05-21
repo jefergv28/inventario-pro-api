@@ -6,12 +6,14 @@ public class ProveedorDTO {
     private Long id;
     private String nombre;
     private String contacto;
+    private String direccion; // <-- Agregado
     private UsuarioDTO usuario;
 
     public ProveedorDTO(ProveedorModel proveedor) {
         this.id = proveedor.getId();
         this.nombre = proveedor.getNombre();
         this.contacto = proveedor.getContacto();
+        this.direccion = proveedor.getDireccion(); // <-- Agregado
         this.usuario = new UsuarioDTO(proveedor.getUsuario());
     }
 
@@ -39,6 +41,14 @@ public class ProveedorDTO {
       this.contacto = contacto;
     }
 
+    public String getDireccion() {  // <-- Agregado
+      return direccion;
+    }
+
+    public void setDireccion(String direccion) {  // <-- Agregado
+      this.direccion = direccion;
+    }
+
     public UsuarioDTO getUsuario() {
       return usuario;
     }
@@ -46,6 +56,4 @@ public class ProveedorDTO {
     public void setUsuario(UsuarioDTO usuario) {
       this.usuario = usuario;
     }
-
-    // Getters y setters...
 }

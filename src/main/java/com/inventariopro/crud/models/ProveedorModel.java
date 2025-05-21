@@ -29,8 +29,11 @@ public class ProveedorModel {
     @Column(nullable = false)
     private String contacto;
 
+    @Column(nullable = true)
+    private String direccion; // ✅ campo agregado correctamente
+
     @OneToMany(mappedBy = "proveedor", cascade = CascadeType.ALL, orphanRemoval = true)
-   @JsonIgnore
+    @JsonIgnore
     private List<ProductoModel> productos;
 
     @ManyToOne
@@ -47,6 +50,9 @@ public class ProveedorModel {
 
     public String getContacto() { return contacto; }
     public void setContacto(String contacto) { this.contacto = contacto; }
+
+    public String getDireccion() { return direccion; }
+    public void setDireccion(String direccion) { this.direccion = direccion; }
 
     public List<ProductoModel> getProductos() { return productos; }
     public void setProductos(List<ProductoModel> productos) { this.productos = productos; }

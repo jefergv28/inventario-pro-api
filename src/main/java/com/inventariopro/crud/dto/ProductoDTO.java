@@ -14,23 +14,29 @@ public class ProductoDTO {
     private ProveedorDTO proveedor;
 
     // Constructor desde la entidad
-    public ProductoDTO(ProductoModel producto) {
-        this.id = producto.getId();
-        this.nombreProducto = producto.getNombreProducto();
-        this.precioProducto = producto.getPrecioProducto();
-        this.cantidadProducto = producto.getCantidadProducto();
-        this.descripcionProducto = producto.getDescripcionProducto();
+ public ProductoDTO(ProductoModel producto) {
+    this.id = producto.getId();
+    this.nombreProducto = producto.getNombreProducto();
+    this.precioProducto = producto.getPrecioProducto();
+    this.cantidadProducto = producto.getCantidadProducto();
+    this.descripcionProducto = producto.getDescripcionProducto();
 
-        if (producto.getImageUrl() != null && !producto.getImageUrl().isEmpty()) {
-            this.imageUrl = "http://localhost:8000/uploads/" + producto.getImageUrl();
+    if (producto.getImageUrl() != null && !producto.getImageUrl().isEmpty()) {
+        // Si ya contiene /uploads/ al principio, evita duplicarlo
+        if (producto.getImageUrl().startsWith("/uploads/")) {
+            this.imageUrl = "http://localhost:8000" + producto.getImageUrl();
         } else {
-            this.imageUrl = null;
+            this.imageUrl = "http://localhost:8000/uploads/" + producto.getImageUrl();
         }
-
-        this.categoria = producto.getCategoria() != null ? new CategoriaDTO(producto.getCategoria()) : null;
-        this.usuario = new UsuarioDTO(producto.getUsuario());
-        this.proveedor = producto.getProveedor() != null ? new ProveedorDTO(producto.getProveedor()) : null;
+    } else {
+        this.imageUrl = null;
     }
+
+    this.categoria = producto.getCategoria() != null ? new CategoriaDTO(producto.getCategoria()) : null;
+    this.usuario = new UsuarioDTO(producto.getUsuario());
+    this.proveedor = producto.getProveedor() != null ? new ProveedorDTO(producto.getProveedor()) : null;
+}
+
 
     // Getters y Setters
 
