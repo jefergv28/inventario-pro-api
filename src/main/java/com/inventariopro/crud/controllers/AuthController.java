@@ -16,7 +16,8 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "http://10.0.2.2:8080"})
+
 @RequiredArgsConstructor
 public class AuthController {
 
