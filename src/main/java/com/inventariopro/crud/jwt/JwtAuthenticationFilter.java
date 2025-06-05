@@ -42,6 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String token = getTokenFromRequest(request);
+        System.out.println("Token JWT recibido: " + token);
 
         if (token == null) {
             filterChain.doFilter(request, response);

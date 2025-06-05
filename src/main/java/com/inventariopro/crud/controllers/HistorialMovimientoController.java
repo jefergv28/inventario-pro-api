@@ -1,17 +1,14 @@
 package com.inventariopro.crud.controllers;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
+import com.inventariopro.crud.dto.MovimientoRequest;
 import com.inventariopro.crud.models.HistorialMovimientoModel;
 import com.inventariopro.crud.services.HistorialMovimientoService;
 
@@ -28,8 +25,18 @@ public class HistorialMovimientoController {
     }
 
     @PostMapping
-    public HistorialMovimientoModel guardarMovimiento(@RequestBody HistorialMovimientoModel movimiento) {
-        return historialService.guardarMovimiento(movimiento);
+    public ResponseEntity<?> crearMovimiento(@RequestBody MovimientoRequest request) {
+        try {
+            HistorialMovimientoModel movimiento = historialService.registrarMovimiento(
+                request.getProductoId(),
+                request.getUsuarioId(),
+                request.getTipoMovimiento(),
+                request.getCantidad()
+            );
+            return ResponseEntity.ok(movimiento);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/{id}")
@@ -42,4 +49,5 @@ public class HistorialMovimientoController {
         boolean eliminado = historialService.eliminarMovimiento(id);
         return eliminado ? "Movimiento eliminado" : "Error al eliminar el movimiento";
     }
+
 }

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.inventariopro.crud.dto.StockDTO;
 import com.inventariopro.crud.models.StockModel;
 import com.inventariopro.crud.services.StockService;
 
@@ -22,21 +23,25 @@ public class StockController {
     @Autowired
     private StockService stockService;
 
+    // Devuelve la lista de stocks como DTOs (con nombreProducto incluido)
     @GetMapping
-    public List<StockModel> obtenerStocks() {
-        return stockService.obtenerStocks();
+    public List<StockDTO> obtenerStocks() {
+        return stockService.obtenerStocksDTO();
     }
 
+    // Guarda o actualiza un stock (recibe entidad completa)
     @PostMapping
     public StockModel guardarStock(@RequestBody StockModel stock) {
         return stockService.guardarStock(stock);
     }
 
+    // Obtener stock por id como DTO opcional
     @GetMapping("/{id}")
-    public Optional<StockModel> obtenerStockPorId(@PathVariable Long id) {
-        return stockService.obtenerPorId(id);
+    public Optional<StockDTO> obtenerStockPorId(@PathVariable Long id) {
+        return stockService.obtenerPorId(id).map(StockDTO::new);
     }
 
+    // Eliminar stock por id
     @DeleteMapping("/{id}")
     public String eliminarStock(@PathVariable Long id) {
         boolean eliminado = stockService.eliminarStock(id);

@@ -27,13 +27,16 @@ public class ApplicationConfig {
         .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
   }
 
-  @Bean
-  public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
-    DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-    authProvider.setUserDetailsService(userDetailsService);
-    authProvider.setPasswordEncoder(passwordEncoder);
-    return authProvider;
-  }
+@SuppressWarnings("deprecation")
+@Bean
+public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+    return new DaoAuthenticationProvider() {{
+        setUserDetailsService(userDetailsService);
+        setPasswordEncoder(passwordEncoder);
+    }};
+}
+
+
 
   @Bean
   public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {

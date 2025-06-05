@@ -1,11 +1,6 @@
 package com.inventariopro.crud.controllers;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -15,8 +10,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,46 +28,54 @@ import com.inventariopro.crud.models.ProveedorModel;
 import com.inventariopro.crud.models.User;
 import com.inventariopro.crud.repositories.CategoriaRepository;
 import com.inventariopro.crud.repositories.UserRepository;
+import com.inventariopro.crud.services.HistorialMovimientoService;
 import com.inventariopro.crud.services.ProductoService;
 import com.inventariopro.crud.services.ProveedorService;
 
-@CrossOrigin(origins = "http://localhost:3000")
 @RestController
-@RequestMapping("/productos")
+@RequestMapping("productos")
 public class ProductoController {
+
+    private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads";
 
     @Autowired
     private ProductoService productoService;
 
     @Autowired
-    private ProveedorService proveedorService;
+    private UserRepository usuarioRepository;
 
     @Autowired
-    private UserRepository usuarioRepository;
+    private ProveedorService proveedorService;
 
     @Autowired
     private CategoriaRepository categoriaRepository;
 
-    private final String UPLOAD_DIR = "uploads";
+    @Autowired
+    private HistorialMovimientoService historialMovimientoService;
 
-    // Endpoint para obtener todos los productos del usuario autenticado
-    @GetMapping
-    public ResponseEntity<List<ProductoDTO>> getProductos(@AuthenticationPrincipal UserDetails usuario) {
-        try {
-            ArrayList<ProductoModel> productos = productoService.getProductosByUsuario(usuario.getUsername());
-
-            // Convertir cada ProductoModel a ProductoDTO
-            List<ProductoDTO> productosDTO = productos.stream()
-                    .map(ProductoDTO::new)
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(productosDTO);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+    private void validateImageFile(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null ||
+            !(contentType.equalsIgnoreCase("image/jpeg") ||
+              contentType.equalsIgnoreCase("image/png") ||
+              contentType.equalsIgnoreCase("image/jpg"))) {
+            throw new RuntimeException("Solo se permiten imágenes JPEG o PNG");
         }
     }
 
-    // Endpoint para guardar un nuevo producto
+    private String storeImage(MultipartFile file) throws IOException {
+        String originalName = file.getOriginalFilename();
+        String fileName = System.currentTimeMillis() + "_" + originalName;
+        java.nio.file.Path uploadPath = java.nio.file.Paths.get(UPLOAD_DIR);
+        if (!java.nio.file.Files.exists(uploadPath)) {
+            java.nio.file.Files.createDirectories(uploadPath);
+        }
+        java.nio.file.Path filePath = uploadPath.resolve(fileName);
+        System.out.println("Guardando imagen en: " + filePath.toAbsolutePath());
+        file.transferTo(filePath.toFile());
+        return fileName;
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> saveProducto(
             @RequestParam("name") String name,
@@ -95,61 +96,57 @@ public class ProductoController {
                 return ResponseEntity.badRequest().body("El nombre del producto es requerido");
             }
 
-            // Buscar usuario autenticado
             User userEntity = usuarioRepository.findByEmail(usuario.getUsername())
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-            // Buscar proveedor por ID
             ProveedorModel proveedor = proveedorService.obtenerPorIdYUsuario(providerId, userEntity)
                     .orElseThrow(() -> new RuntimeException("Proveedor no encontrado o no pertenece al usuario"));
 
-            // Buscar categoría por ID
             CategoriaModel categoria = categoriaRepository.findById(categoryId)
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-            // Crear el producto
             ProductoModel producto = new ProductoModel();
             producto.setNombreProducto(name);
-            producto.setCantidadProducto(quantity);
+            producto.setCantidadProducto(0);
             producto.setDescripcionProducto(description);
             producto.setCategoria(categoria);
             producto.setProveedor(proveedor);
             producto.setPrecioProducto(price);
             producto.setUsuario(userEntity);
 
-            // Manejar imagen
             if (image != null && !image.isEmpty()) {
                 validateImageFile(image);
                 String fileName = storeImage(image);
-                producto.setImageUrl(fileName);
+                producto.setImageUrl("/uploads/" + fileName);
             }
 
-            ProductoModel savedProducto = productoService.saveProducto(producto);
-            return ResponseEntity.ok(savedProducto);
+            ProductoModel productoGuardado = productoService.saveProducto(producto, userEntity.getId());
+
+            if (quantity > 0) {
+                historialMovimientoService.registrarMovimiento(
+                        productoGuardado.getId(),
+                        userEntity.getId(),
+                        "ENTRADA",
+                        quantity
+                );
+            }
+
+            ProductoModel productoActualizado = productoService.getProductoByIdAndUsuario(productoGuardado.getId(), usuario.getUsername());
+            ProductoDTO productoDTO = new ProductoDTO(productoActualizado);
+
+            return ResponseEntity.ok(productoDTO);
 
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error interno al guardar el producto: " + e.getMessage());
-        }
-    }
-
-    // Nuevo endpoint para obtener un producto por id (para edición)
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getProductoPorId(@PathVariable Long id, @AuthenticationPrincipal UserDetails usuario) {
-        try {
-            ProductoModel producto = productoService.getProductoByIdAndUsuario(id, usuario.getUsername());
-            if (producto == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado");
-            }
-            return ResponseEntity.ok(new ProductoDTO(producto));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error interno: " + e.getMessage());
         }
     }
 
-    // Nuevo endpoint para actualizar (editar) un producto existente
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> actualizarProducto(
             @PathVariable Long id,
@@ -181,9 +178,27 @@ public class ProductoController {
             CategoriaModel categoria = categoriaRepository.findById(categoryId)
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-            // Actualizar campos
-            productoExistente.setNombreProducto(name);
+            int cantidadActual = productoExistente.getCantidadProducto();
+            int diferencia = quantity - cantidadActual;
+
+            if (diferencia > 0) {
+                historialMovimientoService.registrarMovimiento(
+                        productoExistente.getId(),
+                        userEntity.getId(),
+                        "ENTRADA",
+                        diferencia
+                );
+            } else if (diferencia < 0) {
+                historialMovimientoService.registrarMovimiento(
+                        productoExistente.getId(),
+                        userEntity.getId(),
+                        "SALIDA",
+                        Math.abs(diferencia)
+                );
+            }
+
             productoExistente.setCantidadProducto(quantity);
+            productoExistente.setNombreProducto(name);
             productoExistente.setDescripcionProducto(description);
             productoExistente.setCategoria(categoria);
             productoExistente.setProveedor(proveedor);
@@ -192,73 +207,73 @@ public class ProductoController {
             if (image != null && !image.isEmpty()) {
                 validateImageFile(image);
                 String fileName = storeImage(image);
-                productoExistente.setImageUrl("/" + UPLOAD_DIR + "/" + fileName);
+                productoExistente.setImageUrl("/uploads/" + fileName);
             }
 
-            ProductoModel actualizado = productoService.saveProducto(productoExistente);
-            return ResponseEntity.ok(actualizado);
+            ProductoModel actualizado = productoService.saveProducto(productoExistente, userEntity.getId());
+            ProductoDTO actualizadoDTO = new ProductoDTO(actualizado);
+
+            return ResponseEntity.ok(actualizadoDTO);
 
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error interno al actualizar el producto: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error interno: " + e.getMessage());
         }
     }
 
-    // Endpoint para eliminar un producto por id
+    @GetMapping
+    public ResponseEntity<?> listarProductos(@AuthenticationPrincipal UserDetails usuario) {
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+        }
+
+        try {
+            List<ProductoModel> productos = productoService.getProductosByUsuario(usuario.getUsername());
+            List<ProductoDTO> productosDTO = productos.stream()
+                .map(ProductoDTO::new)
+                .collect(Collectors.toList());
+
+            return ResponseEntity.ok(productosDTO);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al obtener productos: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> obtenerProducto(@PathVariable Long id, @AuthenticationPrincipal UserDetails usuario) {
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+        }
+
+        try {
+            ProductoModel producto = productoService.getProductoByIdAndUsuario(id, usuario.getUsername());
+            if (producto == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado");
+            }
+            ProductoDTO productoDTO = new ProductoDTO(producto);
+            return ResponseEntity.ok(productoDTO);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al obtener producto: " + e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteById(@PathVariable Long id) {
+    public ResponseEntity<?> eliminarProducto(@PathVariable("id") Long id, @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            boolean deleted = productoService.deleteProducto(id);
-            return deleted ? ResponseEntity.ok("✅ Producto eliminado")
-                    : ResponseEntity.status(HttpStatus.NOT_FOUND).body("❌ Producto no encontrado");
+            User usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+            productoService.eliminarProducto(id, usuario.getId());
+            return ResponseEntity.ok("Producto eliminado correctamente");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar el producto");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al eliminar producto: " + e.getMessage());
         }
-    }
-
-    // Endpoint para obtener todos los proveedores (en este caso se obtienen todos los usuarios)
-    @GetMapping("/proveedores")
-    public ResponseEntity<List<User>> getAllProveedores() {
-        try {
-            List<User> proveedores = usuarioRepository.findAll(); // Suponiendo que los proveedores son usuarios
-            return ResponseEntity.ok(proveedores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
-    // Método para validar que el archivo sea una imagen válida
-    private void validateImageFile(MultipartFile file) {
-        if (file == null) {
-            throw new RuntimeException("El archivo no puede ser nulo");
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new RuntimeException("El archivo debe ser una imagen (JPEG, PNG, etc.)");
-        }
-
-        if (file.getSize() > 5_000_000) {
-            throw new RuntimeException("La imagen es demasiado grande (máximo 5MB)");
-        }
-    }
-
-    // Método para almacenar la imagen en el directorio UPLOAD_DIR
-    private String storeImage(MultipartFile file) throws IOException {
-        Path uploadDir = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
-        Files.createDirectories(uploadDir);
-
-        String fileName = StringUtils.cleanPath(System.currentTimeMillis() + "_" + file.getOriginalFilename());
-
-        if (fileName.contains("..")) {
-            throw new RuntimeException("Nombre de archivo inválido: " + fileName);
-        }
-
-        Path targetLocation = uploadDir.resolve(fileName);
-        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
-        return fileName;
     }
 }

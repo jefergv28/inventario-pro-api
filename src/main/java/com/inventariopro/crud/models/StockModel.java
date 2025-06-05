@@ -1,6 +1,13 @@
 package com.inventariopro.crud.models;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "stock")
@@ -14,9 +21,7 @@ public class StockModel {
     @JoinColumn(name = "producto_id", nullable = false)
     private ProductoModel producto;
 
-    @ManyToOne
-    @JoinColumn(name = "almacen_id", nullable = false)
-    private AlmacenModel almacen;
+
 
     @Column(nullable = false)
     private Integer cantidadDisponible;
@@ -44,13 +49,7 @@ public class StockModel {
         this.producto = producto;
     }
 
-    public AlmacenModel getAlmacen() {
-        return almacen;
-    }
-
-    public void setAlmacen(AlmacenModel almacen) {
-        this.almacen = almacen;
-    }
+    // Quitar getter y setter de almacen
 
     public Integer getCantidadDisponible() {
         return cantidadDisponible;
