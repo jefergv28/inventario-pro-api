@@ -34,4 +34,8 @@ public class UsuarioService {
     public void eliminarUsuario(Long id) {
         userRepository.deleteById(id);  // ← antes eliminaba todos los usuarios
     }
+
+   public Optional<User> getByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
 }

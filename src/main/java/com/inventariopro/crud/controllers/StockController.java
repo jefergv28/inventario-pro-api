@@ -4,17 +4,15 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
 
 import com.inventariopro.crud.dto.StockDTO;
 import com.inventariopro.crud.models.StockModel;
+import com.inventariopro.crud.models.User;
 import com.inventariopro.crud.services.StockService;
+import com.inventariopro.crud.services.UsuarioService;
 
 @RestController
 @RequestMapping("/stocks")
@@ -23,25 +21,35 @@ public class StockController {
     @Autowired
     private StockService stockService;
 
-    // Devuelve la lista de stocks como DTOs (con nombreProducto incluido)
+    @Autowired
+    private UsuarioService usuarioService;
+
+    // Listar stocks del usuario autenticado
     @GetMapping
-    public List<StockDTO> obtenerStocks() {
-        return stockService.obtenerStocksDTO();
+    public List<StockDTO> obtenerStocksPorUsuario(@AuthenticationPrincipal UserDetails userDetails) {
+        return stockService.obtenerStocksDTOPorUsuario(userDetails.getUsername());
     }
 
-    // Guarda o actualiza un stock (recibe entidad completa)
+    // Guardar o actualizar stock
     @PostMapping
-    public StockModel guardarStock(@RequestBody StockModel stock) {
-        return stockService.guardarStock(stock);
+    public StockModel guardarStock(@RequestBody StockModel stock, @AuthenticationPrincipal UserDetails userDetails) {
+        Optional<User> userOptional = usuarioService.getByEmail(userDetails.getUsername());
+
+        if (userOptional.isPresent()) {
+            stock.setUsuario(userOptional.get());
+            return stockService.guardarStock(stock);
+        } else {
+            throw new RuntimeException("Usuario no encontrado");
+        }
     }
 
-    // Obtener stock por id como DTO opcional
+    // Obtener stock por ID
     @GetMapping("/{id}")
     public Optional<StockDTO> obtenerStockPorId(@PathVariable Long id) {
         return stockService.obtenerPorId(id).map(StockDTO::new);
     }
 
-    // Eliminar stock por id
+    // Eliminar stock por ID
     @DeleteMapping("/{id}")
     public String eliminarStock(@PathVariable Long id) {
         boolean eliminado = stockService.eliminarStock(id);

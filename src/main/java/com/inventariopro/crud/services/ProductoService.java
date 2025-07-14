@@ -1,176 +1,133 @@
 package com.inventariopro.crud.services;
 
-import java.util.ArrayList;
-import java.util.Optional;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import com.inventariopro.crud.models.ProductoModel;
 import com.inventariopro.crud.models.User;
 import com.inventariopro.crud.repositories.ProductoRepository;
 import com.inventariopro.crud.repositories.UserRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+
 @Service
 public class ProductoService {
 
     @Autowired
-    ProductoRepository productoRepository;
+    private ProductoRepository productoRepository;
 
     @Autowired
-    UserRepository userRepository;
+    private UserRepository userRepository;
 
     @Autowired
-    HistorialMovimientoService historialMovimientoService;
+    private HistorialMovimientoService historialMovimientoService;
 
-    // Obtener productos por usuario email
-    public ArrayList<ProductoModel> getProductosByUsuario(String email) {
-        Optional<User> usuarioOptional = userRepository.findByEmail(email);
-
-        if (usuarioOptional.isPresent()) {
-            User usuario = usuarioOptional.get();
-            return (ArrayList<ProductoModel>) productoRepository.findByUsuario(usuario);
-        } else {
-            throw new RuntimeException("❌ Usuario no encontrado con email: " + email);
-        }
+    public List<ProductoModel> getProductosByUsuario(String email) {
+        User usuario = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con email: " + email));
+        return productoRepository.findByUsuario(usuario);
     }
 
-    // Guardar producto nuevo y registrar movimiento ENTRADA con cantidad inicial
-    public ProductoModel saveProducto(ProductoModel producto, Long usuarioId) throws Exception {
-        ProductoModel nuevoProducto = productoRepository.save(producto);
+ public ProductoModel saveProducto(ProductoModel producto, Long usuarioId) throws Exception {
+    ProductoModel nuevo = productoRepository.save(producto);
 
-        if (nuevoProducto.getCantidadProducto() > 0) {
-            historialMovimientoService.registrarMovimiento(nuevoProducto.getId(), usuarioId, "ENTRADA", nuevoProducto.getCantidadProducto());
-        }
+    if (producto.getCantidadProducto() > 0) {
+        User usuario = userRepository.findById(usuarioId)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        return nuevoProducto;
+        historialMovimientoService.registrarMovimiento(
+            nuevo.getId(),
+            usuario.getEmail(), // ← ahora sí existe y es válido
+            "ENTRADA",
+            producto.getCantidadProducto()
+        );
     }
 
-    // Obtener producto por ID
+    return nuevo;
+}
+
+
+    public ProductoModel guardarProducto(ProductoModel producto) {
+        return productoRepository.save(producto);
+    }
+
     public Optional<ProductoModel> getById(Long id) {
         return productoRepository.findById(id);
     }
 
-    /**
-     * Actualizar producto, registrar movimientos ENTRADA o SALIDA si cambia la cantidad
-     */
-    public ProductoModel updateById(ProductoModel request, Long id, Long usuarioId) throws Exception {
-        return productoRepository.findById(id)
-            .map(producto -> {
-                int cantidadOriginal = producto.getCantidadProducto();
-                int nuevaCantidad = request.getCantidadProducto();
-
-                producto.setNombreProducto(request.getNombreProducto());
-                producto.setPrecioProducto(request.getPrecioProducto());
-                producto.setCantidadProducto(nuevaCantidad);
-                producto.setCategoria(request.getCategoria());
-                producto.setProveedor(request.getProveedor());
-                producto.setDescripcionProducto(request.getDescripcionProducto());
-                producto.setImageUrl(request.getImageUrl());
-
-                ProductoModel productoActualizado = productoRepository.save(producto);
-
-                // Registrar movimientos solo si cambia la cantidad
-                try {
-                    if (nuevaCantidad > cantidadOriginal) {
-                        int cantidadEntrada = nuevaCantidad - cantidadOriginal;
-                        historialMovimientoService.registrarMovimiento(id, usuarioId, "ENTRADA", cantidadEntrada);
-                    } else if (nuevaCantidad < cantidadOriginal) {
-                        int cantidadSalida = cantidadOriginal - nuevaCantidad;
-                        historialMovimientoService.registrarMovimiento(id, usuarioId, "SALIDA", cantidadSalida);
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error registrando movimiento: " + e.getMessage());
-                }
-
-                return productoActualizado;
-            })
-            .orElseThrow(() -> new RuntimeException("❌ Producto no encontrado con ID: " + id));
+    public ProductoModel getProductoByIdAndUsuario(Long id, String email) {
+        User usuario = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        return productoRepository.findByIdAndUsuario(id, usuario).orElse(null);
     }
 
-    // Eliminar producto y registrar salida de la cantidad existente
- public boolean eliminarProducto(Long id, Long usuarioId) {
-    Optional<ProductoModel> productoOpt = productoRepository.findById(id);
-    Optional<User> usuarioOpt = userRepository.findById(usuarioId);
+    public Optional<ProductoModel> obtenerPorIdYUsuario(Long id, User usuario) {
+        return productoRepository.findByIdAndUsuario(id, usuario);
+    }
 
-    if (productoOpt.isPresent() && usuarioOpt.isPresent()) {
-        ProductoModel producto = productoOpt.get();
-        User usuario = usuarioOpt.get();
+    public ProductoModel updateById(ProductoModel datos, Long id, Long usuarioId) throws Exception {
+        return productoRepository.findById(id).map(producto -> {
+            int cantidadAnterior = producto.getCantidadProducto();
+            int cantidadNueva = datos.getCantidadProducto();
 
-        // Registrar el movimiento de salida con la cantidad actual
-        if (producto.getCantidadProducto() > 0) {
+            producto.setNombreProducto(datos.getNombreProducto());
+            producto.setDescripcionProducto(datos.getDescripcionProducto());
+            producto.setCategoria(datos.getCategoria());
+            producto.setProveedor(datos.getProveedor());
+            producto.setPrecioProducto(datos.getPrecioProducto());
+            producto.setImageUrl(datos.getImageUrl());
+            producto.setCantidadProducto(cantidadNueva);
+
+            ProductoModel actualizado = productoRepository.save(producto);
+
             try {
-             historialMovimientoService.registrarMovimiento(
-    producto.getId(),
-    usuario.getId(),
-    "SALIDA",
-    producto.getCantidadProducto()
-);
+    User usuario = userRepository.findById(usuarioId)
+        .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+    if (cantidadNueva > cantidadAnterior) {
+        historialMovimientoService.registrarMovimiento(id, usuario.getEmail(), "ENTRADA", cantidadNueva - cantidadAnterior);
+    } else if (cantidadNueva < cantidadAnterior) {
+        historialMovimientoService.registrarMovimiento(id, usuario.getEmail(), "SALIDA", cantidadAnterior - cantidadNueva);
+    }
+} catch (Exception e) {
+    System.err.println("Error al registrar movimiento: " + e.getMessage());
+}
+
+            return actualizado;
+        }).orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
+    }
+
+    public boolean eliminarProducto(Long id, Long usuarioId) {
+        Optional<ProductoModel> productoOpt = productoRepository.findById(id);
+        Optional<User> usuarioOpt = userRepository.findById(usuarioId);
+
+        if (productoOpt.isPresent() && usuarioOpt.isPresent()) {
+            ProductoModel producto = productoOpt.get();
+            User usuario = usuarioOpt.get();
+
+            try {
+                if (producto.getCantidadProducto() > 0) {
+                    historialMovimientoService.registrarMovimiento(
+                        producto.getId(),
+                        usuario.getEmail(),
+                        "SALIDA",
+                        producto.getCantidadProducto()
+                    );
+                }
+
+                productoRepository.delete(producto);
+                return true;
 
             } catch (Exception e) {
-                System.err.println("❌ Error registrando movimiento: " + e.getMessage());
+                System.err.println("❌ Error al eliminar producto: " + e.getMessage());
                 return false;
             }
         }
 
-        // Ahora sí, eliminar el producto
-        productoRepository.delete(producto);
-        return true;
+        return false;
     }
 
-    return false;
-}
-
-
-
-    // Obtener producto por ID y usuario (email)
-    public ProductoModel getProductoByIdAndUsuario(Long id, String email) {
-        User usuario = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        return productoRepository.findByIdAndUsuario(id, usuario)
-            .orElse(null);
-    }
-
-    // Actualizar producto por ID y usuario (email)
-    public ProductoModel updateProductoByIdAndUsuario(Long id, String email, ProductoModel datosActualizados, Long usuarioId) throws Exception {
-        // Obtener usuario
-        User usuario = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        // Buscar producto
-        ProductoModel producto = productoRepository.findByIdAndUsuario(id, usuario)
-            .orElseThrow(() -> new RuntimeException("Producto no encontrado o no pertenece al usuario"));
-
-        int cantidadOriginal = producto.getCantidadProducto();
-        int nuevaCantidad = datosActualizados.getCantidadProducto();
-
-        // Actualizar campos
-        producto.setNombreProducto(datosActualizados.getNombreProducto());
-        producto.setCantidadProducto(nuevaCantidad);
-        producto.setDescripcionProducto(datosActualizados.getDescripcionProducto());
-        producto.setCategoria(datosActualizados.getCategoria());
-        producto.setProveedor(datosActualizados.getProveedor());
-        producto.setPrecioProducto(datosActualizados.getPrecioProducto());
-        if (datosActualizados.getImageUrl() != null) {
-            producto.setImageUrl(datosActualizados.getImageUrl());
-        }
-
-        ProductoModel productoActualizado = productoRepository.save(producto);
-
-        // Registrar movimientos si cambia cantidad
-        try {
-            if (nuevaCantidad > cantidadOriginal) {
-                int cantidadEntrada = nuevaCantidad - cantidadOriginal;
-                historialMovimientoService.registrarMovimiento(id, usuarioId, "ENTRADA", cantidadEntrada);
-            } else if (nuevaCantidad < cantidadOriginal) {
-                int cantidadSalida = cantidadOriginal - nuevaCantidad;
-                historialMovimientoService.registrarMovimiento(id, usuarioId, "SALIDA", cantidadSalida);
-            }
-        } catch (Exception e) {
-            System.err.println("Error registrando movimiento: " + e.getMessage());
-        }
-
-        return productoActualizado;
+    public List<ProductoModel> obtenerProductosActivosPorUsuario(User usuario) {
+        return productoRepository.findByUsuarioAndActivoTrue(usuario);
     }
 }

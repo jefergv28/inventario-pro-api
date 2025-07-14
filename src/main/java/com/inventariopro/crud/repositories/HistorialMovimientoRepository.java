@@ -1,6 +1,9 @@
 package com.inventariopro.crud.repositories;
 
 import jakarta.transaction.Transactional;
+
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,4 +14,7 @@ public interface HistorialMovimientoRepository extends JpaRepository<HistorialMo
 
     @Transactional
     void deleteByProductoId(Long productoId);
+
+    List<HistorialMovimientoModel> findByUsuario_Email(String email);
+
 }

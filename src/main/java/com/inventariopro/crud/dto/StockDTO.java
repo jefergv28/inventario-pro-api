@@ -25,7 +25,7 @@ public class StockDTO {
         this.cantidadMinima = stock.getCantidadMinima();
         this.cantidadMaxima = stock.getCantidadMaxima();
         this.productoId = stock.getProducto().getId();
-        this.productoNombre = stock.getProducto().getNombreProducto(); // <-- Aquí está el cambio
+        this.productoNombre = stock.getProducto().getNombreProducto();
     }
 
     // Getters y setters

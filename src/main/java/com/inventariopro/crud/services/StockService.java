@@ -49,4 +49,12 @@ public class StockService {
             return false;
         }
     }
+
+public List<StockDTO> obtenerStocksDTOPorUsuario(String email) {
+    List<StockModel> stocks = stockRepository.findByUsuario_Email(email);
+    return stocks.stream().map(StockDTO::new).toList();
+}
+
+
+
 }

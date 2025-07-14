@@ -2,6 +2,7 @@ package com.inventariopro.crud.controllers;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,11 @@ public class ProductoController {
 
     @Autowired
     private HistorialMovimientoService historialMovimientoService;
+
+    private User getUserFromUserDetails(UserDetails userDetails) {
+    return usuarioRepository.findByEmail(userDetails.getUsername())
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+}
 
     private void validateImageFile(MultipartFile file) {
         String contentType = file.getContentType();
@@ -123,12 +129,13 @@ public class ProductoController {
             ProductoModel productoGuardado = productoService.saveProducto(producto, userEntity.getId());
 
             if (quantity > 0) {
-                historialMovimientoService.registrarMovimiento(
-                        productoGuardado.getId(),
-                        userEntity.getId(),
-                        "ENTRADA",
-                        quantity
+               historialMovimientoService.registrarMovimiento(
+                    productoGuardado.getId(),
+                    userEntity.getEmail(), // ✅ usamos el email
+                    "ENTRADA",
+                    quantity
                 );
+
             }
 
             ProductoModel productoActualizado = productoService.getProductoByIdAndUsuario(productoGuardado.getId(), usuario.getUsername());
@@ -184,14 +191,14 @@ public class ProductoController {
             if (diferencia > 0) {
                 historialMovimientoService.registrarMovimiento(
                         productoExistente.getId(),
-                        userEntity.getId(),
+                        userEntity.getEmail(),
                         "ENTRADA",
                         diferencia
                 );
             } else if (diferencia < 0) {
                 historialMovimientoService.registrarMovimiento(
                         productoExistente.getId(),
-                        userEntity.getId(),
+                        userEntity.getEmail(),
                         "SALIDA",
                         Math.abs(diferencia)
                 );
@@ -264,16 +271,48 @@ public class ProductoController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarProducto(@PathVariable("id") Long id, @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User usuario = usuarioRepository.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-            productoService.eliminarProducto(id, usuario.getId());
+   @DeleteMapping("/{id}")
+public ResponseEntity<?> eliminarProducto(@PathVariable("id") Long id, @AuthenticationPrincipal UserDetails userDetails) {
+    try {
+        User usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        boolean eliminado = productoService.eliminarProducto(id, usuario.getId());
+
+        if (eliminado) {
             return ResponseEntity.ok("Producto eliminado correctamente");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al eliminar producto: " + e.getMessage());
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado o ya fue eliminado");
         }
+    } catch (org.springframework.dao.DataIntegrityViolationException e) {
+        // Este es el error cuando el producto tiene relaciones (FK constraint)
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body("❌ No se puede eliminar el producto porque está asociado a otras entidades (ej. movimientos)");
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error al eliminar producto: " + e.getMessage());
     }
+}
+
+    @PutMapping("/{id}/desactivar")
+public ResponseEntity<?> desactivarProducto(@PathVariable Long id,
+                                            @AuthenticationPrincipal UserDetails userDetails) {
+    try {
+        User usuario = getUserFromUserDetails(userDetails);
+        Optional<ProductoModel> productoOpt = productoService.obtenerPorIdYUsuario(id, usuario);
+
+        if (productoOpt.isEmpty()) {
+            return ResponseEntity.status(404).body("Producto no encontrado o no autorizado");
+        }
+
+        ProductoModel producto = productoOpt.get();
+        producto.setActivo(false);
+        productoService.guardarProducto(producto);
+
+        return ResponseEntity.ok("Producto desactivado correctamente");
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("Error al desactivar producto");
+    }
+}
+
 }

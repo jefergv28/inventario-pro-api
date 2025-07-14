@@ -32,6 +32,10 @@ public class ProductoModel {
     @Column(name = "descripcion_producto", nullable = false, length = 250)
     private String descripcionProducto;
 
+    @Column(nullable = false)
+private boolean activo = true;
+
+
     @ManyToOne
     @JoinColumn(name = "categoria_id", nullable = false)
     @JsonBackReference
@@ -85,5 +89,13 @@ private ProveedorModel proveedor;
 		public void setProveedor(ProveedorModel proveedor) {
     this.proveedor = proveedor;
 }
+  public boolean isActivo() {
+    return activo;
+}
+
+public void setActivo(boolean activo) {
+    this.activo = activo;
+}
+
 
 }

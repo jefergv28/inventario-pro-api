@@ -15,4 +15,7 @@ public interface ProductoRepository extends JpaRepository<ProductoModel, Long> {
     List<ProductoModel> findByUsuario(User usuario);
 
     Optional<ProductoModel> findByIdAndUsuario(Long id, User usuario);
+    // ProductoRepository.java
+List<ProductoModel> findByUsuarioAndActivoTrue(User usuario);
+
 }

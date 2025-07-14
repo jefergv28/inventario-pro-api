@@ -17,4 +17,7 @@ public interface ProveedorRepository extends JpaRepository<ProveedorModel, Long>
     Optional<ProveedorModel> findByNombreAndUsuario(String nombre, User usuario);
 
     List<ProveedorModel> findByNombreContainingIgnoreCaseAndUsuario(String query, User usuario);
+
+    Optional<ProveedorModel> findByIdAndUsuario(Long id, User usuario);
+
 }

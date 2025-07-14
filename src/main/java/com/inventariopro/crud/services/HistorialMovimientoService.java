@@ -26,17 +26,12 @@ public class HistorialMovimientoService {
     @Autowired
     private UserRepository userRepository;
 
-    // Obtener todos los movimientos registrados
-    public List<HistorialMovimientoModel> obtenerMovimientos() {
-        return historialRepository.findAll();
-    }
-
-    // Registrar movimiento (ENTRADA o SALIDA) y actualizar la cantidad en inventario
-    public HistorialMovimientoModel registrarMovimiento(Long productoId, Long usuarioId, String tipoMovimiento, Integer cantidad) throws Exception {
+    // ✅ Registrar movimiento con email (usuario autenticado)
+    public HistorialMovimientoModel registrarMovimiento(Long productoId, String email, String tipoMovimiento, Integer cantidad) throws Exception {
         ProductoModel producto = productoRepository.findById(productoId)
                 .orElseThrow(() -> new Exception("Producto no encontrado"));
 
-        User usuario = userRepository.findById(usuarioId)
+        User usuario = userRepository.findByEmail(email)
                 .orElseThrow(() -> new Exception("Usuario no encontrado"));
 
         if ("SALIDA".equalsIgnoreCase(tipoMovimiento)) {
@@ -50,10 +45,8 @@ public class HistorialMovimientoService {
             throw new Exception("Tipo de movimiento inválido");
         }
 
-        // Guardar el producto con la cantidad actualizada
         productoRepository.save(producto);
 
-        // Crear y guardar el registro del movimiento
         HistorialMovimientoModel movimiento = new HistorialMovimientoModel();
         movimiento.setProducto(producto);
         movimiento.setUsuario(usuario);
@@ -64,17 +57,22 @@ public class HistorialMovimientoService {
         return historialRepository.save(movimiento);
     }
 
-    // Guardar un movimiento (puede ser útil para otros casos)
+    // ✅ Obtener movimientos solo del usuario autenticado
+    public List<HistorialMovimientoModel> obtenerMovimientosPorUsuario(String email) {
+        return (List<HistorialMovimientoModel>) historialRepository.findByUsuario_Email(email);
+    }
+
+    // ✅ Guardar directamente un movimiento (opcional)
     public HistorialMovimientoModel guardarMovimiento(HistorialMovimientoModel movimiento) {
         return historialRepository.save(movimiento);
     }
 
-    // Obtener movimiento por id
+    // ✅ Obtener movimiento por ID
     public Optional<HistorialMovimientoModel> obtenerPorId(Long id) {
         return historialRepository.findById(id);
     }
 
-    // Eliminar movimiento por id
+    // ✅ Eliminar movimiento
     public boolean eliminarMovimiento(Long id) {
         try {
             historialRepository.deleteById(id);
@@ -83,6 +81,4 @@ public class HistorialMovimientoService {
             return false;
         }
     }
-
-  
 }

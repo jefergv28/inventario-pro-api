@@ -21,7 +21,9 @@ public class StockModel {
     @JoinColumn(name = "producto_id", nullable = false)
     private ProductoModel producto;
 
-
+    @ManyToOne
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private User usuario;
 
     @Column(nullable = false)
     private Integer cantidadDisponible;
@@ -49,7 +51,13 @@ public class StockModel {
         this.producto = producto;
     }
 
-    // Quitar getter y setter de almacen
+    public User getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(User usuario) {
+        this.usuario = usuario;
+    }
 
     public Integer getCantidadDisponible() {
         return cantidadDisponible;

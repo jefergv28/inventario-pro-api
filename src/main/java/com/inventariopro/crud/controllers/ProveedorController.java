@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -93,13 +96,27 @@ public class ProveedorController {
         return ResponseEntity.ok(new ProveedorDTO(actualizado));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> eliminarProveedor(@PathVariable Long id,
-                                                    @AuthenticationPrincipal UserDetails userDetails) {
-        User usuario = getUserFromUserDetails(userDetails);
-        boolean eliminado = proveedorService.eliminarProveedor(id, usuario);
-        return eliminado
-                ? ResponseEntity.ok("Proveedor eliminado")
-                : ResponseEntity.status(404).body("Proveedor no encontrado o no autorizado");
+    private static final Logger logger = LoggerFactory.getLogger(ProveedorController.class);
+
+ @DeleteMapping("/{id}")
+    public ResponseEntity<?> eliminarProveedor(@PathVariable Long id,
+                                               @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User usuario = getUserFromUserDetails(userDetails);
+            boolean eliminado = proveedorService.eliminarProveedor(id, usuario);
+
+            if (eliminado) {
+                return ResponseEntity.noContent().build(); // 204 No Content
+            } else {
+                return ResponseEntity.status(404).body("Proveedor no encontrado o no autorizado");
+            }
+        } catch (DataIntegrityViolationException e) {
+            logger.error("❌ El proveedor tiene productos asociados. No se puede eliminar.", e);
+            return ResponseEntity.status(400).body("No se puede eliminar el proveedor porque tiene productos asociados.");
+        } catch (Exception e) {
+            logger.error("❌ Error interno al eliminar proveedor", e);
+            return ResponseEntity.status(500).body("Error interno al eliminar proveedor");
+        }
     }
+
 }
