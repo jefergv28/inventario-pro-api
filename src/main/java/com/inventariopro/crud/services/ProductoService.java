@@ -1,14 +1,15 @@
 package com.inventariopro.crud.services;
 
-import com.inventariopro.crud.models.ProductoModel;
-import com.inventariopro.crud.models.User;
-import com.inventariopro.crud.repositories.ProductoRepository;
-import com.inventariopro.crud.repositories.UserRepository;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import com.inventariopro.crud.models.ProductoModel;
+import com.inventariopro.crud.models.User;
+import com.inventariopro.crud.repositories.ProductoRepository;
+import com.inventariopro.crud.repositories.UserRepository;
 
 @Service
 public class ProductoService {
@@ -29,22 +30,25 @@ public class ProductoService {
     }
 
  public ProductoModel saveProducto(ProductoModel producto, Long usuarioId) throws Exception {
-    ProductoModel nuevo = productoRepository.save(producto);
-
-    if (producto.getCantidadProducto() > 0) {
+   ProductoModel productoGuardado = productoRepository.save(producto);
+   // Obtenemos el usuario para el registro del movimiento
         User usuario = userRepository.findById(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        historialMovimientoService.registrarMovimiento(
-            nuevo.getId(),
-            usuario.getEmail(), // ← ahora sí existe y es válido
-            "ENTRADA",
-            producto.getCantidadProducto()
-        );
+ // Si la cantidad es mayor a 0, registramos el movimiento inicial
+        if (productoGuardado.getCantidadProducto() > 0) {
+            historialMovimientoService.registrarMovimiento(
+                productoGuardado.getId(),
+                usuario.getEmail(),
+                "ENTRADA",
+                productoGuardado.getCantidadProducto()
+            );
+        }
+        return productoGuardado;
+
     }
 
-    return nuevo;
-}
+
 
 
     public ProductoModel guardarProducto(ProductoModel producto) {
@@ -76,7 +80,9 @@ public class ProductoService {
             producto.setProveedor(datos.getProveedor());
             producto.setPrecioProducto(datos.getPrecioProducto());
             producto.setImageUrl(datos.getImageUrl());
-            producto.setCantidadProducto(cantidadNueva);
+            if (cantidadNueva != cantidadAnterior) {
+                producto.setCantidadProducto(cantidadNueva);
+            }
 
             ProductoModel actualizado = productoRepository.save(producto);
 

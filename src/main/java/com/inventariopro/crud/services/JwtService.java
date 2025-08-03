@@ -40,32 +40,46 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String getUserNameFromToken(String token) {
+  public String getUserNameFromToken(String token) {
+    try {
         return extractClaim(token, Claims::getSubject);
+    } catch (Exception e) {
+        System.out.println("Error al obtener el username del token: " + e.getMessage());
+        return null;
     }
+}
+
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = getUserNameFromToken(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
-    private Claims getAllClaims(String token) {
+    @SuppressWarnings("UseSpecificCatch")
+   private Claims getAllClaims(String token) {
+    try {
         return Jwts
-                .parserBuilder()
-                .setSigningKey(getKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+            .parserBuilder()
+            .setSigningKey(getKey())
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
+    } catch (Exception e) {
+        System.out.println("Token inválido o corrupto: " + e.getMessage());
+        return null;
     }
+}
+
 
     private boolean isTokenExpired(String token) {
         return extractClaim(token, Claims::getExpiration).before(new Date());
     }
 
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = getAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
+ public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+    final Claims claims = getAllClaims(token);
+    return claims != null ? claimsResolver.apply(claims) : null;
+}
+
 
     public Date getExpiration(String token) {
       return extractClaim(token, Claims::getExpiration);

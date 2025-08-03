@@ -17,6 +17,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -47,11 +48,26 @@ public class User implements UserDetails {
 
     private String password;
 
+   @Builder.Default
+@Column(name = "language")
+private String language = "es";
+
+@Builder.Default
+@Column(name = "notifications")
+private Boolean notifications = true;
+
+@Lob
+@Column(columnDefinition = "TEXT")
+private String profilePicture;
+
+
+
+
     @Enumerated(EnumType.STRING)
     private Role role;
 
     // Aquí agregas la relación con ProductoModel
-    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OneToMany(mappedBy = "usuario", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JsonIgnore
     private List<ProductoModel> productos;
 

@@ -6,11 +6,18 @@ public class UsuarioDTO {
     private Long id;
     private String name;
     private String email;
+    private String profilePicture;
 
     public UsuarioDTO(User user) {
         this.id = user.getId();
         this.name = user.getName();
         this.email = user.getEmail();
+        if (user.getProfilePicture() == null || user.getProfilePicture().isEmpty()) {
+            this.profilePicture = "/uploads/profile-image.jpg";
+        } else {
+            this.profilePicture = user.getProfilePicture();
+        }
+
     }
 
     public Long getId() {
@@ -35,5 +42,13 @@ public class UsuarioDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+     public String getProfilePicture() {
+        return profilePicture;
+    }
+
+    public void setProfilePicture(String profilePicture) {
+        this.profilePicture = profilePicture;
     }
 }

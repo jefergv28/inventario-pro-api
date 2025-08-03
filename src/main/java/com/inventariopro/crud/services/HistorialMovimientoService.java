@@ -21,37 +21,37 @@ public class HistorialMovimientoService {
     private HistorialMovimientoRepository historialRepository;
 
     @Autowired
-    private ProductoRepository productoRepository;
+    private ProductoRepository productoRepository; // Aunque no lo usaremos para actualizar cantidad aquí, lo mantenemos por si acaso
 
     @Autowired
     private UserRepository userRepository;
 
     // ✅ Registrar movimiento con email (usuario autenticado)
     public HistorialMovimientoModel registrarMovimiento(Long productoId, String email, String tipoMovimiento, Integer cantidad) throws Exception {
+        // Obtenemos el producto solo para asociarlo al historial, no para modificar su cantidad aquí
         ProductoModel producto = productoRepository.findById(productoId)
                 .orElseThrow(() -> new Exception("Producto no encontrado"));
 
         User usuario = userRepository.findByEmail(email)
                 .orElseThrow(() -> new Exception("Usuario no encontrado"));
 
+        // No modificamos la cantidad del producto aquí.
+        // Esa lógica ya se maneja en ProductoService.saveProducto y ProductoService.updateById.
+
+        // Validaciones (si quieres mantenerlas, aunque la principal ya está en ProductoService)
         if ("SALIDA".equalsIgnoreCase(tipoMovimiento)) {
-            if (producto.getCantidadProducto() < cantidad) {
-                throw new Exception("Cantidad insuficiente para realizar la salida");
-            }
-            producto.setCantidadProducto(producto.getCantidadProducto() - cantidad);
-        } else if ("ENTRADA".equalsIgnoreCase(tipoMovimiento)) {
-            producto.setCantidadProducto(producto.getCantidadProducto() + cantidad);
-        } else {
+            // Opcional: Podrías hacer una validación de stock aquí si el HistorialMovimientoService
+            // fuera llamado directamente para una salida sin pasar por ProductoService.
+            // Pero como ProductoService ya valida, esta es redundante en este caso de uso.
+        } else if (!"ENTRADA".equalsIgnoreCase(tipoMovimiento)) {
             throw new Exception("Tipo de movimiento inválido");
         }
-
-        productoRepository.save(producto);
 
         HistorialMovimientoModel movimiento = new HistorialMovimientoModel();
         movimiento.setProducto(producto);
         movimiento.setUsuario(usuario);
         movimiento.setTipoMovimiento(tipoMovimiento.toUpperCase());
-        movimiento.setCantidad(cantidad);
+        movimiento.setCantidad(cantidad); // La cantidad del movimiento (la diferencia)
         movimiento.setFechaMovimiento(new Date());
 
         return historialRepository.save(movimiento);
@@ -59,10 +59,10 @@ public class HistorialMovimientoService {
 
     // ✅ Obtener movimientos solo del usuario autenticado
     public List<HistorialMovimientoModel> obtenerMovimientosPorUsuario(String email) {
-        return (List<HistorialMovimientoModel>) historialRepository.findByUsuario_Email(email);
+        return historialRepository.findByUsuario_Email(email);
     }
 
-    // ✅ Guardar directamente un movimiento (opcional)
+    // ✅ Guardar directamente un movimiento (opcional, si no lo usas, puedes eliminarlo)
     public HistorialMovimientoModel guardarMovimiento(HistorialMovimientoModel movimiento) {
         return historialRepository.save(movimiento);
     }

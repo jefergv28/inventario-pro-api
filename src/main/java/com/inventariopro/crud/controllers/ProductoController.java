@@ -55,9 +55,9 @@ public class ProductoController {
     private HistorialMovimientoService historialMovimientoService;
 
     private User getUserFromUserDetails(UserDetails userDetails) {
-    return usuarioRepository.findByEmail(userDetails.getUsername())
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-}
+        return usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    }
 
     private void validateImageFile(MultipartFile file) {
         String contentType = file.getContentType();
@@ -113,7 +113,7 @@ public class ProductoController {
 
             ProductoModel producto = new ProductoModel();
             producto.setNombreProducto(name);
-            producto.setCantidadProducto(0);
+            producto.setCantidadProducto(quantity); 
             producto.setDescripcionProducto(description);
             producto.setCategoria(categoria);
             producto.setProveedor(proveedor);
@@ -128,16 +128,17 @@ public class ProductoController {
 
             ProductoModel productoGuardado = productoService.saveProducto(producto, userEntity.getId());
 
+            // Registrar movimiento inicial si se especificó una cantidad al crear el producto
             if (quantity > 0) {
                historialMovimientoService.registrarMovimiento(
                     productoGuardado.getId(),
-                    userEntity.getEmail(), // ✅ usamos el email
+                    userEntity.getEmail(),
                     "ENTRADA",
                     quantity
                 );
-
             }
 
+            // Se obtiene el producto actualizado para asegurar que la cantidad se refleje correctamente
             ProductoModel productoActualizado = productoService.getProductoByIdAndUsuario(productoGuardado.getId(), usuario.getUsername());
             ProductoDTO productoDTO = new ProductoDTO(productoActualizado);
 
@@ -171,11 +172,6 @@ public class ProductoController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
             }
 
-            ProductoModel productoExistente = productoService.getProductoByIdAndUsuario(id, usuario.getUsername());
-            if (productoExistente == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado");
-            }
-
             User userEntity = usuarioRepository.findByEmail(usuario.getUsername())
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
@@ -185,39 +181,35 @@ public class ProductoController {
             CategoriaModel categoria = categoriaRepository.findById(categoryId)
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-            int cantidadActual = productoExistente.getCantidadProducto();
-            int diferencia = quantity - cantidadActual;
+            // Crea un nuevo ProductoModel con los datos del frontend para pasarlo al servicio
+            ProductoModel productoParaActualizar = new ProductoModel();
+            productoParaActualizar.setId(id); // Asegúrate de establecer el ID para la actualización
+            productoParaActualizar.setNombreProducto(name);
+            productoParaActualizar.setCantidadProducto(quantity);
+            productoParaActualizar.setDescripcionProducto(description);
+            productoParaActualizar.setCategoria(categoria);
+            productoParaActualizar.setProveedor(proveedor);
+            productoParaActualizar.setPrecioProducto(price);
+            productoParaActualizar.setUsuario(userEntity); // Asigna el usuario al producto
 
-            if (diferencia > 0) {
-                historialMovimientoService.registrarMovimiento(
-                        productoExistente.getId(),
-                        userEntity.getEmail(),
-                        "ENTRADA",
-                        diferencia
-                );
-            } else if (diferencia < 0) {
-                historialMovimientoService.registrarMovimiento(
-                        productoExistente.getId(),
-                        userEntity.getEmail(),
-                        "SALIDA",
-                        Math.abs(diferencia)
-                );
-            }
-
-            productoExistente.setCantidadProducto(quantity);
-            productoExistente.setNombreProducto(name);
-            productoExistente.setDescripcionProducto(description);
-            productoExistente.setCategoria(categoria);
-            productoExistente.setProveedor(proveedor);
-            productoExistente.setPrecioProducto(price);
-
+            // Manejo de la imagen: si se envía una nueva imagen, se procesa.
+            // Si no se envía (image == null), recupera la URL de la imagen existente para no borrarla.
             if (image != null && !image.isEmpty()) {
                 validateImageFile(image);
                 String fileName = storeImage(image);
-                productoExistente.setImageUrl("/uploads/" + fileName);
+                productoParaActualizar.setImageUrl("/uploads/" + fileName);
+            } else {
+                // Si no se proporciona una nueva imagen, recupera la URL de la imagen existente.
+                // Esto es crucial para no borrar la imagen si no se envía una nueva.
+                ProductoModel productoActualEnDB = productoService.getProductoByIdAndUsuario(id, userEntity.getUsername());
+                if (productoActualEnDB != null) {
+                    productoParaActualizar.setImageUrl(productoActualEnDB.getImageUrl());
+                }
             }
 
-            ProductoModel actualizado = productoService.saveProducto(productoExistente, userEntity.getId());
+            // Llama al método updateById del servicio, que maneja la lógica de cantidad y historial
+            ProductoModel actualizado = productoService.updateById(productoParaActualizar, id, userEntity.getId());
+
             ProductoDTO actualizadoDTO = new ProductoDTO(actualizado);
 
             return ResponseEntity.ok(actualizadoDTO);
@@ -271,48 +263,47 @@ public class ProductoController {
         }
     }
 
-   @DeleteMapping("/{id}")
-public ResponseEntity<?> eliminarProducto(@PathVariable("id") Long id, @AuthenticationPrincipal UserDetails userDetails) {
-    try {
-        User usuario = usuarioRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> eliminarProducto(@PathVariable("id") Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        boolean eliminado = productoService.eliminarProducto(id, usuario.getId());
+            boolean eliminado = productoService.eliminarProducto(id, usuario.getId());
 
-        if (eliminado) {
-            return ResponseEntity.ok("Producto eliminado correctamente");
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado o ya fue eliminado");
+            if (eliminado) {
+                return ResponseEntity.ok("Producto eliminado correctamente");
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado o no autorizado para eliminar");
+            }
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Este es el error cuando el producto tiene relaciones (FK constraint), por ejemplo, en historial de movimientos
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("❌ No se puede eliminar el producto porque está asociado a otras entidades (ej. movimientos). Considere desactivarlo.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al eliminar producto: " + e.getMessage());
         }
-    } catch (org.springframework.dao.DataIntegrityViolationException e) {
-        // Este es el error cuando el producto tiene relaciones (FK constraint)
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body("❌ No se puede eliminar el producto porque está asociado a otras entidades (ej. movimientos)");
-    } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error al eliminar producto: " + e.getMessage());
     }
-}
 
     @PutMapping("/{id}/desactivar")
-public ResponseEntity<?> desactivarProducto(@PathVariable Long id,
-                                            @AuthenticationPrincipal UserDetails userDetails) {
-    try {
-        User usuario = getUserFromUserDetails(userDetails);
-        Optional<ProductoModel> productoOpt = productoService.obtenerPorIdYUsuario(id, usuario);
+    public ResponseEntity<?> desactivarProducto(@PathVariable Long id,
+                                                @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User usuario = getUserFromUserDetails(userDetails);
+            Optional<ProductoModel> productoOpt = productoService.obtenerPorIdYUsuario(id, usuario);
 
-        if (productoOpt.isEmpty()) {
-            return ResponseEntity.status(404).body("Producto no encontrado o no autorizado");
+            if (productoOpt.isEmpty()) {
+                return ResponseEntity.status(404).body("Producto no encontrado o no autorizado");
+            }
+
+            ProductoModel producto = productoOpt.get();
+            producto.setActivo(false); // Establece el producto como inactivo
+            productoService.guardarProducto(producto); // Guarda el cambio de estado
+
+            return ResponseEntity.ok("Producto desactivado correctamente");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al desactivar producto");
         }
-
-        ProductoModel producto = productoOpt.get();
-        producto.setActivo(false);
-        productoService.guardarProducto(producto);
-
-        return ResponseEntity.ok("Producto desactivado correctamente");
-    } catch (Exception e) {
-        return ResponseEntity.status(500).body("Error al desactivar producto");
     }
-}
-
 }
