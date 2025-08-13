@@ -2,6 +2,7 @@ package com.inventariopro.crud.controllers;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.inventariopro.crud.dto.MapStringBooleanType;
 import com.inventariopro.crud.dto.ProductoDTO;
 import com.inventariopro.crud.models.CategoriaModel;
 import com.inventariopro.crud.models.ProductoModel;
@@ -32,7 +36,11 @@ import com.inventariopro.crud.repositories.UserRepository;
 import com.inventariopro.crud.services.HistorialMovimientoService;
 import com.inventariopro.crud.services.ProductoService;
 import com.inventariopro.crud.services.ProveedorService;
+import com.inventariopro.crud.services.UsuarioService;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 @RequestMapping("productos")
 public class ProductoController {
@@ -54,6 +62,29 @@ public class ProductoController {
     @Autowired
     private HistorialMovimientoService historialMovimientoService;
 
+
+
+    @Autowired
+    private UsuarioService usuarioService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private Map<String, Boolean> getUserPermissions(String username) {
+        try {
+            Optional<User> userOptional = usuarioService.getByEmail(username);
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                if (user.getPermissionsJson() != null) {
+                    return objectMapper.readValue(user.getPermissionsJson(), new MapStringBooleanType());
+                }
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Error al leer permisos del usuario", e);
+        }
+        return null;
+    }
+
     private User getUserFromUserDetails(UserDetails userDetails) {
         return usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -62,9 +93,9 @@ public class ProductoController {
     private void validateImageFile(MultipartFile file) {
         String contentType = file.getContentType();
         if (contentType == null ||
-            !(contentType.equalsIgnoreCase("image/jpeg") ||
-              contentType.equalsIgnoreCase("image/png") ||
-              contentType.equalsIgnoreCase("image/jpg"))) {
+                !(contentType.equalsIgnoreCase("image/jpeg") ||
+                        contentType.equalsIgnoreCase("image/png") ||
+                        contentType.equalsIgnoreCase("image/jpg"))) {
             throw new RuntimeException("Solo se permiten imágenes JPEG o PNG");
         }
     }
@@ -93,11 +124,12 @@ public class ProductoController {
             @RequestPart(value = "image", required = false) MultipartFile image,
             @AuthenticationPrincipal UserDetails usuario) {
 
-        try {
-            if (usuario == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
-            }
+        Map<String, Boolean> userPermissions = getUserPermissions(usuario.getUsername());
+        if (userPermissions == null || !userPermissions.getOrDefault("addProduct", false)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
 
+        try {
             if (name == null || name.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body("El nombre del producto es requerido");
             }
@@ -113,7 +145,7 @@ public class ProductoController {
 
             ProductoModel producto = new ProductoModel();
             producto.setNombreProducto(name);
-            producto.setCantidadProducto(quantity); 
+            producto.setCantidadProducto(quantity);
             producto.setDescripcionProducto(description);
             producto.setCategoria(categoria);
             producto.setProveedor(proveedor);
@@ -128,17 +160,15 @@ public class ProductoController {
 
             ProductoModel productoGuardado = productoService.saveProducto(producto, userEntity.getId());
 
-            // Registrar movimiento inicial si se especificó una cantidad al crear el producto
             if (quantity > 0) {
-               historialMovimientoService.registrarMovimiento(
-                    productoGuardado.getId(),
-                    userEntity.getEmail(),
-                    "ENTRADA",
-                    quantity
+                historialMovimientoService.registrarMovimiento(
+                        productoGuardado,
+                        userEntity.getEmail(),
+                        "ENTRADA",
+                        quantity
                 );
             }
 
-            // Se obtiene el producto actualizado para asegurar que la cantidad se refleje correctamente
             ProductoModel productoActualizado = productoService.getProductoByIdAndUsuario(productoGuardado.getId(), usuario.getUsername());
             ProductoDTO productoDTO = new ProductoDTO(productoActualizado);
 
@@ -167,11 +197,12 @@ public class ProductoController {
             @RequestPart(value = "image", required = false) MultipartFile image,
             @AuthenticationPrincipal UserDetails usuario) {
 
-        try {
-            if (usuario == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
-            }
+        Map<String, Boolean> userPermissions = getUserPermissions(usuario.getUsername());
+        if (userPermissions == null || !userPermissions.getOrDefault("editProduct", false)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
 
+        try {
             User userEntity = usuarioRepository.findByEmail(usuario.getUsername())
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
@@ -181,35 +212,28 @@ public class ProductoController {
             CategoriaModel categoria = categoriaRepository.findById(categoryId)
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-            // Crea un nuevo ProductoModel con los datos del frontend para pasarlo al servicio
             ProductoModel productoParaActualizar = new ProductoModel();
-            productoParaActualizar.setId(id); // Asegúrate de establecer el ID para la actualización
+            productoParaActualizar.setId(id);
             productoParaActualizar.setNombreProducto(name);
             productoParaActualizar.setCantidadProducto(quantity);
             productoParaActualizar.setDescripcionProducto(description);
             productoParaActualizar.setCategoria(categoria);
             productoParaActualizar.setProveedor(proveedor);
             productoParaActualizar.setPrecioProducto(price);
-            productoParaActualizar.setUsuario(userEntity); // Asigna el usuario al producto
+            productoParaActualizar.setUsuario(userEntity);
 
-            // Manejo de la imagen: si se envía una nueva imagen, se procesa.
-            // Si no se envía (image == null), recupera la URL de la imagen existente para no borrarla.
             if (image != null && !image.isEmpty()) {
                 validateImageFile(image);
                 String fileName = storeImage(image);
                 productoParaActualizar.setImageUrl("/uploads/" + fileName);
             } else {
-                // Si no se proporciona una nueva imagen, recupera la URL de la imagen existente.
-                // Esto es crucial para no borrar la imagen si no se envía una nueva.
                 ProductoModel productoActualEnDB = productoService.getProductoByIdAndUsuario(id, userEntity.getUsername());
                 if (productoActualEnDB != null) {
                     productoParaActualizar.setImageUrl(productoActualEnDB.getImageUrl());
                 }
             }
 
-            // Llama al método updateById del servicio, que maneja la lógica de cantidad y historial
             ProductoModel actualizado = productoService.updateById(productoParaActualizar, id, userEntity.getId());
-
             ProductoDTO actualizadoDTO = new ProductoDTO(actualizado);
 
             return ResponseEntity.ok(actualizadoDTO);
@@ -234,8 +258,8 @@ public class ProductoController {
         try {
             List<ProductoModel> productos = productoService.getProductosByUsuario(usuario.getUsername());
             List<ProductoDTO> productosDTO = productos.stream()
-                .map(ProductoDTO::new)
-                .collect(Collectors.toList());
+                    .map(ProductoDTO::new)
+                    .collect(Collectors.toList());
 
             return ResponseEntity.ok(productosDTO);
         } catch (Exception e) {
@@ -246,8 +270,9 @@ public class ProductoController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> obtenerProducto(@PathVariable Long id, @AuthenticationPrincipal UserDetails usuario) {
-        if (usuario == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+        Map<String, Boolean> userPermissions = getUserPermissions(usuario.getUsername());
+        if (userPermissions == null || !userPermissions.getOrDefault("viewProduct", false)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
 
         try {
@@ -263,32 +288,32 @@ public class ProductoController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarProducto(@PathVariable("id") Long id, @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User usuario = usuarioRepository.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+@DeleteMapping("/{id}")
+public ResponseEntity<?> eliminarProducto(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+    // 1. Verificamos los permisos y obtenemos el usuario
+    User user = getUserFromUserDetails(userDetails);
 
-            boolean eliminado = productoService.eliminarProducto(id, usuario.getId());
+    try {
+        // --- AQUÍ ESTÁ EL CAMBIO CRUCIAL ---
+        // Ya no verificamos el historial de movimientos aquí.
+        // Simplemente llamamos al servicio para que desactive el producto.
+        productoService.eliminarProducto(id, user.getId());
 
-            if (eliminado) {
-                return ResponseEntity.ok("Producto eliminado correctamente");
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado o no autorizado para eliminar");
-            }
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Este es el error cuando el producto tiene relaciones (FK constraint), por ejemplo, en historial de movimientos
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body("❌ No se puede eliminar el producto porque está asociado a otras entidades (ej. movimientos). Considere desactivarlo.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al eliminar producto: " + e.getMessage());
-        }
+        return ResponseEntity.ok("Producto desactivado correctamente.");
+    } catch (Exception e) {
+        // El servicio lanzará una excepción si el producto no se encuentra o hay otro error
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body("Error al desactivar producto: " + e.getMessage());
     }
+}
 
     @PutMapping("/{id}/desactivar")
-    public ResponseEntity<?> desactivarProducto(@PathVariable Long id,
-                                                @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> desactivarProducto(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        Map<String, Boolean> userPermissions = getUserPermissions(userDetails.getUsername());
+        if (userPermissions == null || !userPermissions.getOrDefault("editProduct", false)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
         try {
             User usuario = getUserFromUserDetails(userDetails);
             Optional<ProductoModel> productoOpt = productoService.obtenerPorIdYUsuario(id, usuario);
@@ -298,12 +323,30 @@ public class ProductoController {
             }
 
             ProductoModel producto = productoOpt.get();
-            producto.setActivo(false); // Establece el producto como inactivo
-            productoService.guardarProducto(producto); // Guarda el cambio de estado
+            producto.setActivo(false);
+            productoService.guardarProducto(producto);
 
             return ResponseEntity.ok("Producto desactivado correctamente");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error al desactivar producto");
         }
     }
+
+    @GetMapping("/recientes")
+public ResponseEntity<?> obtenerProductosRecientes(@AuthenticationPrincipal UserDetails usuario) {
+    try {
+        // Debes implementar este método en tu ProductoService
+        // para que traiga los productos más recientes del usuario.
+        List<ProductoModel> productosRecientes = productoService.getProductosRecientesByUsuario(usuario.getUsername());
+
+        List<ProductoDTO> productosDTO = productosRecientes.stream()
+                .map(ProductoDTO::new)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(productosDTO);
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error al obtener productos recientes: " + e.getMessage());
+    }
+}
 }

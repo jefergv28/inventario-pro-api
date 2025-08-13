@@ -10,6 +10,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
@@ -24,12 +26,15 @@ public class CategoriaModel {
     @Column(nullable = false, unique = true)
     private String nombre;
 
+    // AÑADE ESTA LÍNEA para vincular cada categoría con un usuario
+    @ManyToOne
+   @JoinColumn(name = "usuario_id", nullable = true)
+    private User usuario;
+
     // Relación con productos (una categoría puede tener varios productos)
-  @JsonManagedReference
-@OneToMany(mappedBy = "categoria", cascade = CascadeType.ALL, orphanRemoval = true)
-private List<ProductoModel> productos;
-
-
+    @JsonManagedReference
+    @OneToMany(mappedBy = "categoria", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductoModel> productos;
 
     // Getters y Setters
     public Long getId() {
@@ -46,6 +51,15 @@ private List<ProductoModel> productos;
 
     public void setNombre(String nombre) {
         this.nombre = nombre;
+    }
+
+    // Asegúrate de añadir los getters y setters para el nuevo campo 'usuario'
+    public User getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(User usuario) {
+        this.usuario = usuario;
     }
 
     public List<ProductoModel> getProductos() {

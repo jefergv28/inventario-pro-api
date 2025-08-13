@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.inventariopro.crud.dto.AuthResponse;
 import com.inventariopro.crud.dto.LoginRequest;
 import com.inventariopro.crud.dto.RegisterRequest;
+import com.inventariopro.crud.dto.ResetPasswordRequest;
 import com.inventariopro.crud.services.AuthService;
 
 import lombok.RequiredArgsConstructor;
@@ -33,4 +34,13 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
     }
+@PostMapping("/forgot-password")
+ public ResponseEntity<String> forgotPassword(@RequestBody String email) {
+    authService.forgotPassword(email);
+ return ResponseEntity.ok("Si la dirección de correo electrónico está asociada con una cuenta, recibirás un enlace para restablecer tu contraseña."); }
+ @PostMapping("/reset-password") public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+ authService.resetPassword(request.getToken(), request.getNewPassword());
+ return ResponseEntity.ok("Contraseña restablecida con éxito.");
+ }
+
 }

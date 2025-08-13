@@ -13,7 +13,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.inventariopro.crud.services.JwtService;
-
+import org.springframework.lang.NonNull;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,9 +32,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     @SuppressWarnings("UseSpecificCatch")
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+       @NonNull  HttpServletRequest request,
+            @NonNull     HttpServletResponse response,
+            @NonNull    FilterChain filterChain) throws ServletException, IOException {
 
         // Excluir endpoints públicos como /auth
         if (request.getRequestURI().startsWith("/auth")) {

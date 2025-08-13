@@ -1,5 +1,6 @@
 package com.inventariopro.crud.models;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -17,7 +18,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -60,11 +63,31 @@ private Boolean notifications = true;
 @Column(columnDefinition = "TEXT")
 private String profilePicture;
 
+private String passwordResetToken;
+ private LocalDateTime passwordResetTokenExpiry;
+
+ @ManyToOne
+    @JoinColumn(name = "creator_id")
+    private User creator;
 
 
+@Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+private UserStatus status;
 
+  public User getCreator() {
+        return creator;
+    }
+
+    public void setCreator(User creator) {
+        this.creator = creator;
+    }
     @Enumerated(EnumType.STRING)
     private Role role;
+
+     @Lob // Indica que el campo puede almacenar grandes cantidades de texto
+    @Column(name = "permissions_json", columnDefinition = "TEXT") // Mapea a una columna TEXT en la DB
+    private String permissionsJson;
 
     // Aquí agregas la relación con ProductoModel
   @OneToMany(mappedBy = "usuario", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
@@ -121,4 +144,13 @@ private String profilePicture;
     public int hashCode() {
         return 31;
     }
+
+    public String getPermissionsJson() {
+        return permissionsJson;
+    }
+
+    public void setPermissionsJson(String permissionsJson) {
+        this.permissionsJson = permissionsJson;
+    }
+
 }

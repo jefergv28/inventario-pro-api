@@ -2,8 +2,11 @@ package com.inventariopro.crud.models;
 
 import java.util.Date;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,18 +18,19 @@ import jakarta.persistence.TemporalType;
 
 @Entity
 @Table(name = "historial_movimientos")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class HistorialMovimientoModel {
 
-    @Id
+   @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "producto_id", nullable = false)
-    private ProductoModel producto; // Relación con la tabla de productos
+    private ProductoModel producto;
 
     @Column(nullable = false)
-    private String tipoMovimiento; // "ENTRADA" o "SALIDA"
+    private String tipoMovimiento;
 
     @Column(nullable = false)
     private Integer cantidad;
@@ -35,13 +39,12 @@ public class HistorialMovimientoModel {
     @Column(nullable = false, updatable = false)
     private Date fechaMovimiento;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = false)
-    private User usuario; // Usuario que hizo el movimiento
+    private User usuario;
 
-    // Constructor
     public HistorialMovimientoModel() {
-        this.fechaMovimiento = new Date(); // Asigna la fecha actual automáticamente
+        this.fechaMovimiento = new Date();
     }
 
     // Getters y Setters

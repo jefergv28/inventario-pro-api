@@ -31,6 +31,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/auth/login",
                     "/auth/register",
+                    "/auth/forgot-password",
                     "/error",
                     "/swagger-ui.html",
                     "/swagger-ui/**",
@@ -56,6 +57,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.addAllowedOrigin("http://localhost:3000");   // Asegúrate de usar el origen correcto
+        configuration.addAllowedOrigin("http://192.168.1.8:3000");
+
         configuration.addAllowedMethod("GET");
         configuration.addAllowedMethod("POST");
         configuration.addAllowedMethod("PUT");

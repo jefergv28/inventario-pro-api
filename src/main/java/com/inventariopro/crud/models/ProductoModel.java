@@ -1,19 +1,31 @@
 package com.inventariopro.crud.models;
 
+import java.time.Instant;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Importa esto
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.JoinColumn; // Importa esto
+import jakarta.persistence.ManyToOne; // Importa esto
+import jakarta.persistence.Table; // Importa esto
+import jakarta.persistence.Temporal; // Importa esto
+import jakarta.persistence.TemporalType; // Importa esto
 
 @Entity
 @Table(name = "productos")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@EntityListeners(AuditingEntityListener.class) // <-- Agrega esta anotación
 public class ProductoModel {
 
     @Id
@@ -32,24 +44,30 @@ public class ProductoModel {
     @Column(name = "descripcion_producto", nullable = false, length = 250)
     private String descripcionProducto;
 
-    @Column(nullable = false)
-private boolean activo = true;
+    @Column(columnDefinition = "boolean default true")
+    private boolean activo = true;
 
+    // --- ¡CAMPO FALTANTE! ---
+    @CreatedDate
+    @Temporal(TemporalType.TIMESTAMP)
+   @Column(name = "fecha_creacion", nullable = true)
+    private Instant fechaCreacion;
+    // --- ---
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categoria_id", nullable = false)
     @JsonBackReference
     private CategoriaModel categoria;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = false)
-    @JsonIgnoreProperties("productos")
+     @JsonIgnore
     private User usuario;
 
-@ManyToOne(optional = true)
-@JoinColumn(name = "proveedor_id", nullable = true)
-private ProveedorModel proveedor;
-
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "proveedor_id", nullable = true)
+    @JsonIgnore
+    private ProveedorModel proveedor;
 
     @Column(name = "image_url")
     private String imageUrl;
@@ -81,21 +99,28 @@ private ProveedorModel proveedor;
         return proveedor;
     }
 
-
-
-
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-		public void setProveedor(ProveedorModel proveedor) {
-    this.proveedor = proveedor;
-}
-  public boolean isActivo() {
-    return activo;
-}
 
-public void setActivo(boolean activo) {
-    this.activo = activo;
-}
+    public void setProveedor(ProveedorModel proveedor) {
+        this.proveedor = proveedor;
+    }
 
+    public boolean isActivo() {
+        return activo;
+    }
 
+    public void setActivo(boolean activo) {
+        this.activo = activo;
+    }
+
+    // --- ¡GETTER Y SETTER FALTANTES! ---
+    public Instant getFechaCreacion() {
+        return fechaCreacion;
+    }
+
+    public void setFechaCreacion(Instant fechaCreacion) {
+        this.fechaCreacion = fechaCreacion;
+    }
+    // --- ---
 }

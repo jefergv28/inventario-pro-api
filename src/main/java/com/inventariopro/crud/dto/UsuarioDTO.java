@@ -7,11 +7,15 @@ public class UsuarioDTO {
     private String name;
     private String email;
     private String profilePicture;
+     private String status;
+    private String permissionsJson;
 
     public UsuarioDTO(User user) {
         this.id = user.getId();
         this.name = user.getName();
         this.email = user.getEmail();
+        this.status = user.getStatus().name();
+        this.permissionsJson = user.getPermissionsJson();
         if (user.getProfilePicture() == null || user.getProfilePicture().isEmpty()) {
             this.profilePicture = "/uploads/profile-image.jpg";
         } else {
@@ -50,5 +54,21 @@ public class UsuarioDTO {
 
     public void setProfilePicture(String profilePicture) {
         this.profilePicture = profilePicture;
+    }
+
+     public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getPermissionsJson() {
+        return permissionsJson;
+    }
+
+    public void setPermissionsJson(String permissionsJson) {
+        this.permissionsJson = permissionsJson;
     }
 }
