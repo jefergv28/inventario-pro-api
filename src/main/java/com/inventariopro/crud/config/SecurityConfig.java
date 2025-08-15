@@ -56,6 +56,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        configuration.addAllowedOrigin("https://inventario-pro.onrender.com");
         configuration.addAllowedOrigin("http://localhost:3000");   // Asegúrate de usar el origen correcto
         configuration.addAllowedOrigin("http://192.168.1.8:3000");
 
