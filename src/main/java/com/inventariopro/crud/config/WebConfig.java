@@ -11,7 +11,7 @@ public class WebConfig implements WebMvcConfigurer {
   @Override
   public void addCorsMappings(@NonNull CorsRegistry registry) {
     registry.addMapping("/**")
-            .allowedOrigins("http://localhost:3000") // Cambia esto en prod si es necesario
+            .allowedOrigins("https://inventario-pro.onrender.com")
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")
             .allowCredentials(true);
