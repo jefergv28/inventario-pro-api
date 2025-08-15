@@ -13,6 +13,7 @@ import com.inventariopro.crud.dto.LoginRequest;
 import com.inventariopro.crud.dto.RegisterRequest;
 import com.inventariopro.crud.models.Role;
 import com.inventariopro.crud.models.User;
+import com.inventariopro.crud.models.UserStatus;
 import com.inventariopro.crud.repositories.UserRepository;
 
 
@@ -59,6 +60,7 @@ public class AuthService {
         .email(request.getEmail())
         .password(passwordEncoder.encode(request.getPassword())) // Importante: encriptar
         .role(Role.USER)
+           .status(UserStatus.APPROVED)
         .build();
 
     userRepository.save(user);
