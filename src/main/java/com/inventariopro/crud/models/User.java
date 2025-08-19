@@ -42,66 +42,49 @@ public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;  // Cambiado a Long
+    private Long id;
 
     @Column(nullable = false)
     private String name;
 
     private String email;
 
+    @Column(nullable = false)  // CONTRASEÑA sin @Lob
     private String password;
 
-   @Builder.Default
-@Column(name = "language")
-private String language = "es";
+    @Builder.Default
+    @Column(name = "language")
+    private String language = "es";
 
-@Builder.Default
-@Column(name = "notifications")
-private Boolean notifications = true;
+    @Builder.Default
+    @Column(name = "notifications")
+    private Boolean notifications = true;
 
-@Lob
-@Column(columnDefinition = "TEXT")
-private String profilePicture;
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String profilePicture;
 
-private String passwordResetToken;
- private LocalDateTime passwordResetTokenExpiry;
+    private String passwordResetToken;
+    private LocalDateTime passwordResetTokenExpiry;
 
- @ManyToOne
+    @ManyToOne
     @JoinColumn(name = "creator_id")
     private User creator;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserStatus status;
 
-@Enumerated(EnumType.STRING)
-  @Column(nullable = false)
-private UserStatus status;
-
-  public User getCreator() {
-        return creator;
-    }
-
-    public void setCreator(User creator) {
-        this.creator = creator;
-    }
     @Enumerated(EnumType.STRING)
     private Role role;
 
-     @Lob // Indica que el campo puede almacenar grandes cantidades de texto
-    @Column(name = "permissions_json", columnDefinition = "TEXT") // Mapea a una columna TEXT en la DB
+    @Lob
+    @Column(name = "permissions_json", columnDefinition = "TEXT")
     private String permissionsJson;
 
-    // Aquí agregas la relación con ProductoModel
-  @OneToMany(mappedBy = "usuario", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @OneToMany(mappedBy = "usuario", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JsonIgnore
     private List<ProductoModel> productos;
-
-    // Getter y setter para productos
-    public List<ProductoModel> getProductos() {
-        return productos;
-    }
-
-    public void setProductos(List<ProductoModel> productos) {
-        this.productos = productos;
-    }
 
     // Métodos de UserDetails
     @Override
@@ -131,7 +114,7 @@ private UserStatus status;
         return true;
     }
 
-    // equals y hashCode basados solo en id para evitar problemas de comparación
+    // equals y hashCode basados solo en id
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -145,6 +128,15 @@ private UserStatus status;
         return 31;
     }
 
+    // Getters y Setters adicionales
+    public List<ProductoModel> getProductos() {
+        return productos;
+    }
+
+    public void setProductos(List<ProductoModel> productos) {
+        this.productos = productos;
+    }
+
     public String getPermissionsJson() {
         return permissionsJson;
     }
@@ -153,4 +145,11 @@ private UserStatus status;
         this.permissionsJson = permissionsJson;
     }
 
+    public User getCreator() {
+        return creator;
+    }
+
+    public void setCreator(User creator) {
+        this.creator = creator;
+    }
 }
