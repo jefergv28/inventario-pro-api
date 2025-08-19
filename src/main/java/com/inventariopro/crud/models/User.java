@@ -60,10 +60,10 @@ public class User implements UserDetails {
     @Column(name = "notifications")
     private Boolean notifications = true;
 
-    @Builder.Default
     @Lob
-    @Column(columnDefinition = "TEXT")
-    private String profilePicture = "";
+@Builder.Default
+@Column(name = "profile_picture", columnDefinition = "TEXT DEFAULT ''")
+private String profilePicture = "";
 
     private String passwordResetToken;
     private LocalDateTime passwordResetTokenExpiry;
@@ -79,10 +79,10 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    @Builder.Default
-    @Lob
-    @Column(name = "permissions_json", columnDefinition = "TEXT")
-    private String permissionsJson = "{}";
+   @Lob
+@Builder.Default
+@Column(name = "permissions_json", columnDefinition = "TEXT DEFAULT '{}'")
+private String permissionsJson = "{}";
 
     @OneToMany(mappedBy = "usuario", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JsonIgnore
